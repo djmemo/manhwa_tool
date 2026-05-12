@@ -26,7 +26,7 @@ def _get_output_filename(src_filename: str, format_sortie: str) -> str:
     
     Args:
         src_filename: Nom du fichier source
-        format_sortie: Format de sortie (jpg, png, webp, etc.)
+        format_sortie: Format de sortie (jpg, png, webp)
     
     Returns:
         Nom du fichier avec la nouvelle extension
@@ -160,7 +160,7 @@ def run():
     
     # Menu pour sélectionner le format de sortie
     _clear()
-    formats_disponibles = ["jpg", "jpeg", "png", "webp", "bmp", "tiff"]
+    formats_disponibles = ["jpg", "png", "webp"]
     idx_format = menu(
         "Format de sortie",
         formats_disponibles,
