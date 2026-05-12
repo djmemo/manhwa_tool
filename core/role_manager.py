@@ -32,6 +32,7 @@ def _default_role(label: str, dossier: str) -> dict:
         },
         "config": {
             "model_esrgan": "realesrgan-x4plus-anime",
+            "format_sortie_upscale": "png",
             "qscale_global": 95,
             "qscale_groupe": 92,
             "extensions_images": ["jpg", "jpeg", "png", "webp"],
