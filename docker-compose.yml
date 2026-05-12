@@ -1,0 +1,49 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  docker-compose.yml — Manhwa Tool v2
+#
+#  Démarrage :
+#    cp docker/env.example .env   # adapter OSIRISSCAN_HOST_PATH et ESRGAN_HOST_PATH
+#    docker compose build
+#    docker compose run --rm manhwa-tool
+#
+#  Note : "docker compose up" ne convient pas pour un outil interactif TTY.
+#  Utiliser "docker compose run --rm manhwa-tool" pour une session interactive.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  manhwa-tool:
+    image: manhwa-tool:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Utiliser --no-cache pour garantir la reproductibilité en prod :
+      # docker compose build --no-cache
+
+    # ── Interactivité TTY (obligatoire pour readchar) ─────────────────────────
+    tty: true
+    stdin_open: true
+
+    # ── Variables d'environnement ─────────────────────────────────────────────
+    # Chargées depuis .env si présent (copier docker/env.example → .env)
+    env_file:
+      - path: .env
+        required: false    # ne plante pas si .env absent
+    environment:
+      - OSIRISSCAN_RACINE=/data/osirisscan
+      - ESRGAN_EXE_PATH=/tools/realesrgan/realesrgan-ncnn-vulkan
+      - CONSOLE_LARGEUR=${CONSOLE_LARGEUR:-80}
+      - TERM=xterm-256color
+      - PYTHONUNBUFFERED=1
+
+    # ── Volumes ───────────────────────────────────────────────────────────────
+    volumes:
+      # Projets manhwa : bind mount depuis l'hôte (lecture/écriture)
+      - ${OSIRISSCAN_HOST_PATH:-./data}:/data/osirisscan:rw
+
+      # Binaire Real-ESRGAN : bind mount depuis l'hôte (lecture seule)
+      # Si ESRGAN_HOST_PATH vide → /dev/null monté (évite l'erreur Docker)
+      - ${ESRGAN_HOST_PATH:-/dev/null}:/tools/realesrgan:ro
+
+    # ── Comportement ─────────────────────────────────────────────────────────
+    restart: "no"          # outil interactif, pas un service daemon
+    network_mode: none     # aucun réseau nécessaire (tout est local)
