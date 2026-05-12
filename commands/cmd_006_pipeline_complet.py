@@ -8,7 +8,7 @@ import re
 from session import session
 from core.status_manager import read_status, mark_etape_done, is_termine
 from core.project_manager import list_chapters, update_project_after_chapter_done
-from core.archive_manager import est_archivable, archive_chapter
+from core.archive_manager import archive_chapter
 from core.integrity_checker import count_images
 from core.changelog import add_entry
 from ui.colors import ok, err, warn, info, title, separator
@@ -147,7 +147,7 @@ def run():
 
         # ── Fusion finale ─────────────────────────────────────────────────────
         elif etape == "fusion_finale":
-            from commands.cmd_002_fusion_globale import run as run_fus
+            from commands.cmd_003_fusion_par_groupe import run as run_fus
             try:
                 run_fus()
             except Exception as e:
