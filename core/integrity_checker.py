@@ -3,7 +3,7 @@ core/integrity_checker.py — Vérification d'intégrité source vs destination.
 """
 import os
 
-EXTENSIONS_IMAGES = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
+EXTENSIONS_IMAGES = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".psd"}
 
 
 def count_images(path: str) -> int:
