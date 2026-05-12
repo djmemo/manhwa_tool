@@ -7,6 +7,9 @@ import os
 import readchar
 from ui.colors import title, muted, separator, breadcrumb as fmt_breadcrumb, info
 
+# Gestion de la touche Escape (peut ne pas exister sur tous les OS)
+_ESCAPE_KEY = getattr(readchar.key, 'ESCAPE', '\x1b')
+
 
 def _clear():
     os.system("cls" if os.name == "nt" else "clear")
@@ -75,7 +78,7 @@ def menu(
             cursor = (cursor + 1) % len(items)
         elif key == readchar.key.ENTER:
             return cursor
-        elif key == readchar.key.ESCAPE and allow_escape:
+        elif key == _ESCAPE_KEY and allow_escape:
             return None
 
 
