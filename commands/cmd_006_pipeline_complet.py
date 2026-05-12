@@ -27,15 +27,15 @@ ETAPES_LABELS = {
 }
 ETAPES_MANUEL = {"nettoyage_psd", "export_jpeg"}
 ETAPES_DOSSIER = {
-    "nettoyage_psd": "02_Clean_PSD",
-    "export_jpeg":   "03_Clean_JPEG",
+    "nettoyage_psd": "03_Clean_PSD",
+    "export_jpeg":   "04_Clean_JPEG",
 }
 ETAPES_SRC_IMAGES = {
     "extraction_cbz":  "01_Original_RAW",
     "upscale":         "02_Upscale_RAW",
-    "nettoyage_psd":   "02_Clean_PSD",
-    "export_jpeg":     "03_Clean_JPEG",
-    "fusion_finale":   "03_Clean_JPEG",
+    "nettoyage_psd":   "03_Clean_PSD",
+    "export_jpeg":     "04_Clean_JPEG",
+    "fusion_finale":   "04_Clean_JPEG",
 }
 
 

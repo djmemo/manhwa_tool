@@ -688,7 +688,7 @@ class TestFusionParGroupe:
         import os
 
         ch_path = str(tmp_path / "Chapter 01")
-        src = os.path.join(ch_path, "03_Clean_JPEG")
+        src = os.path.join(ch_path, "04_Clean_JPEG")
         os.makedirs(src, exist_ok=True)
 
         for i in range(n_images):
@@ -722,8 +722,8 @@ class TestFusionParGroupe:
         from PIL import Image
 
         ch_path = self._make_chapter(tmp_path, 9)
-        src = os.path.join(ch_path, "03_Clean_JPEG")
-        dst = os.path.join(ch_path, "04_Final_Merged")
+        src = os.path.join(ch_path, "04_Clean_JPEG")
+        dst = os.path.join(ch_path, "05_Final_Merged")
         os.makedirs(dst, exist_ok=True)
 
         from commands.cmd_003_fusion_par_groupe import _list_images_sorted, _split_into_groups
@@ -821,7 +821,7 @@ class TestIntegrationCmd002:
         from commands.cmd_002_fusion_globale import _list_images_sorted
         import os
 
-        src = str(tmp_path / "03_Clean_JPEG")
+        src = str(tmp_path / "04_Clean_JPEG")
         self._make_jpeg_images(src, 5, w=100, h=50)
 
         images = _list_images_sorted(src)
@@ -1003,7 +1003,7 @@ class TestIntegrationPipelineComplet:
     """Tests du pipeline end-to-end (sans subprocess/Photoshop)."""
 
     def _make_full_chapter(self, tmp_path, chapter_name="Chapter 01"):
-        """Crée un chapitre complet avec images dans 03_Clean_JPEG/."""
+        """Crée un chapitre complet avec images dans 04_Clean_JPEG/."""
         import os
         from PIL import Image
         from core.project_manager import create_project
@@ -1013,14 +1013,14 @@ class TestIntegrationPipelineComplet:
         role_path = os.path.join(proj, "01_Clean")
         ch_path = os.path.join(role_path, chapter_name)
 
-        for sub in ["01_Original_RAW", "02_Upscale_RAW", "02_Clean_PSD",
-                    "03_Clean_JPEG", "04_Final_Merged"]:
+        for sub in ["01_Original_RAW", "02_Upscale_RAW", "03_Clean_PSD",
+                    "04_Clean_JPEG", "05_Final_Merged"]:
             os.makedirs(os.path.join(ch_path, sub), exist_ok=True)
 
-        # Créer 4 images dans 03_Clean_JPEG/
+        # Créer 4 images dans 04_Clean_JPEG/
         for i in range(4):
             img = Image.new("RGB", (100, 80), (i * 30, 0, 0))
-            img.save(os.path.join(ch_path, "03_Clean_JPEG", f"page_{i+1:03d}.jpg"), "JPEG")
+            img.save(os.path.join(ch_path, "04_Clean_JPEG", f"page_{i+1:03d}.jpg"), "JPEG")
 
         create_status(ch_path, chapter_name, "Cleaner")
         return proj, role_path, ch_path
@@ -1071,8 +1071,8 @@ class TestIntegrationPipelineComplet:
 
         # 4. Fusion finale
         from commands.cmd_002_fusion_globale import _list_images_sorted
-        src = os.path.join(ch_path, "03_Clean_JPEG")
-        dst = os.path.join(ch_path, "04_Final_Merged")
+        src = os.path.join(ch_path, "04_Clean_JPEG")
+        dst = os.path.join(ch_path, "05_Final_Merged")
         images = _list_images_sorted(src)
         assert len(images) > 0
 
@@ -1140,7 +1140,7 @@ class TestAuditFinal:
         for n in (1, 2):
             ch_path = os.path.join(role_path, f"Chapter {n:02d}")
             for sub in ["01_Original_RAW", "02_Upscale_RAW",
-                        "02_Clean_PSD", "03_Clean_JPEG", "04_Final_Merged"]:
+                        "03_Clean_PSD", "04_Clean_JPEG", "05_Final_Merged"]:
                 os.makedirs(os.path.join(ch_path, sub), exist_ok=True)
             create_status(ch_path, f"Chapter {n:02d}", "Cleaner")
 
@@ -1200,7 +1200,7 @@ class TestAuditFinal:
         import os
         from core.integrity_checker import count_images
 
-        d = tmp_path / "02_Clean_PSD"
+        d = tmp_path / "03_Clean_PSD"
         d.mkdir()
         for i in range(3):
             (d / f"page_{i}.jpg").write_bytes(b"\xff\xd8\xff")
@@ -1250,7 +1250,7 @@ class TestAuditFinal:
         for n, duree in [(1, "0:02:00"), (2, "0:03:30")]:
             ch_path = os.path.join(role_path, f"Chapter {n:02d}")
             for sub in ["01_Original_RAW", "02_Upscale_RAW",
-                        "02_Clean_PSD", "03_Clean_JPEG", "04_Final_Merged"]:
+                        "03_Clean_PSD", "04_Clean_JPEG", "05_Final_Merged"]:
                 os.makedirs(os.path.join(ch_path, sub), exist_ok=True)
             create_status(ch_path, f"Chapter {n:02d}", "Cleaner")
             for etape in ["extraction_cbz", "upscale", "nettoyage_psd",

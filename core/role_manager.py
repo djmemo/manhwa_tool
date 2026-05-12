@@ -9,9 +9,9 @@ import yaml
 DEFAULT_SOUS_DOSSIERS = [
     {"nom": "01_Original_RAW", "index": 0, "description": "Images brutes extraites du CBZ"},
     {"nom": "02_Upscale_RAW", "index": 1, "description": "Images upscalées par Real-ESRGAN"},
-    {"nom": "02_Clean_PSD", "index": 2, "description": "Fichiers PSD nettoyage manuel"},
-    {"nom": "03_Clean_JPEG", "index": 3, "description": "JPEG après export Photoshop"},
-    {"nom": "04_Final_Merged", "index": 4, "description": "Image(s) fusionnée(s) finale(s)"},
+    {"nom": "03_Clean_PSD", "index": 2, "description": "Fichiers PSD nettoyage manuel"},
+    {"nom": "04_Clean_JPEG", "index": 3, "description": "JPEG après export Photoshop"},
+    {"nom": "05_Final_Merged", "index": 4, "description": "Image(s) fusionnée(s) finale(s)"},
 ]
 
 ROLES_DISPONIBLES = [

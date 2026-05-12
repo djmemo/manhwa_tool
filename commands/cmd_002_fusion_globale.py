@@ -14,7 +14,7 @@ from ui.menu_engine import menu, pause, _clear
 from ui.progress_bar import ProgressBar
 
 LABEL = "🔗  Fusion globale JPEG"
-DESCRIPTION = "Fusionne toutes les images de 03_Clean_JPEG/ en merged_output.jpg"
+DESCRIPTION = "Fusionne toutes les images de 04_Clean_JPEG/ en merged_output.jpg"
 
 
 def run():
@@ -32,8 +32,8 @@ def run():
 
     chapter_name = chapters[idx]
     chapter_path = os.path.join(role_path, chapter_name)
-    src_path = os.path.join(chapter_path, "03_Clean_JPEG")
-    dst_path = os.path.join(chapter_path, "04_Final_Merged")
+    src_path = os.path.join(chapter_path, "04_Clean_JPEG")
+    dst_path = os.path.join(chapter_path, "05_Final_Merged")
 
     # Lire la qualité depuis .role.yaml
     role_data = read_role_yaml(role_path) or {}
@@ -41,7 +41,7 @@ def run():
 
     images = _list_images_sorted(src_path)
     if not images:
-        print(warn("  Aucune image dans 03_Clean_JPEG/"))
+        print(warn("  Aucune image dans 04_Clean_JPEG/"))
         pause()
         return
 

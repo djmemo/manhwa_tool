@@ -15,7 +15,7 @@ from ui.menu_engine import menu, pause, prompt_int, _clear
 from ui.progress_bar import ProgressBar
 
 LABEL = "🔗  Fusion par groupe de pages"
-DESCRIPTION = "Fusionne 03_Clean_JPEG/ par groupes de N pages en fichiers segmentés"
+DESCRIPTION = "Fusionne 04_Clean_JPEG/ par groupes de N pages en fichiers segmentés"
 
 
 def run():
@@ -33,12 +33,12 @@ def run():
 
     chapter_name = chapters[idx]
     chapter_path = os.path.join(role_path, chapter_name)
-    src_path = os.path.join(chapter_path, "03_Clean_JPEG")
-    dst_path = os.path.join(chapter_path, "04_Final_Merged")
+    src_path = os.path.join(chapter_path, "04_Clean_JPEG")
+    dst_path = os.path.join(chapter_path, "05_Final_Merged")
 
     images = _list_images_sorted(src_path)
     if not images:
-        print(warn("  Aucune image dans 03_Clean_JPEG/"))
+        print(warn("  Aucune image dans 04_Clean_JPEG/"))
         pause()
         return
 
