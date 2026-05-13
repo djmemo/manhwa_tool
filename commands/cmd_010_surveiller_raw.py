@@ -347,8 +347,11 @@ def on_new_cbz_handler(cbz_name: str, raw_path: str, detected: list):
     action = display_post_treatment_menu(progress)
 
     if action == "explorer":
-        open_chapter_explorer(progress.chapter_path)
-        print(info("  Explorateur ouvert."))
+        if progress.chapter_path:
+            open_chapter_explorer(progress.chapter_path)
+            print(info("  Explorateur ouvert."))
+        else:
+            print(err("  Chemin du chapitre introuvable, impossible d'ouvrir l'explorateur."))
     elif action == "upscale":
         print(warn("  Upscale automatique : non implémenté (action manuelle recommandée)"))
     elif action == "quitter":
