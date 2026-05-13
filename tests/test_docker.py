@@ -214,7 +214,7 @@ class TestDockerEntrypoint:
     Remplace 'exec python main.py' par 'echo' pour ne pas lancer l'appli.
     """
 
-    def _run_entrypoint(self, env: dict, args: list = None) -> tuple:
+    def _run_entrypoint(self, env: dict, args: list[str] | None = None) -> tuple:
         entrypoint_path = os.path.join(ROOT, "docker", "entrypoint.sh")
         with open(entrypoint_path) as f:
             content = f.read()
