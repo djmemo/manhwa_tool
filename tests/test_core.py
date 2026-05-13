@@ -122,6 +122,7 @@ class TestRoleManager:
         os.makedirs(role_path, exist_ok=True)
         create_role_yaml(role_path, "Cleaner", "01_Clean")
         data = read_role_yaml(role_path)
+        assert data is not None
         assert data["role"]["label"] == "Cleaner"
         assert data["role"]["dossier"] == "01_Clean"
 
@@ -146,9 +147,11 @@ class TestRoleManager:
         role_path = os.path.join(tmp_project, "01_Clean")
         add_membre(role_path, "Alice")
         data = read_role_yaml(role_path)
+        assert data is not None
         assert "Alice" in data["role"]["membres"]
         remove_membre(role_path, "Alice")
         data = read_role_yaml(role_path)
+        assert data is not None
         assert "Alice" not in data["role"]["membres"]
 
     def test_update_field(self, tmp_project):
@@ -156,6 +159,7 @@ class TestRoleManager:
         role_path = os.path.join(tmp_project, "01_Clean")
         update_field(role_path, "config", "model_esrgan", "realesrgan-x4plus")
         data = read_role_yaml(role_path)
+        assert data is not None
         assert data["config"]["model_esrgan"] == "realesrgan-x4plus"
 
 
@@ -165,7 +169,7 @@ class TestStatusManager:
     def test_create_status_default(self, tmp_chapter):
         from core.status_manager import read_status
         status = read_status(tmp_chapter)
-        assert status is not None
+        assert status is not None, "read_status returned None"
         assert status["statut_global"] == "non_commence"
         assert "etapes" in status
         assert "integrite" in status
@@ -173,6 +177,7 @@ class TestStatusManager:
     def test_mark_etape_done_changes_statut(self, tmp_chapter):
         from core.status_manager import mark_etape_done, read_status
         updated = mark_etape_done(tmp_chapter, "extraction_cbz")
+        assert updated is not None
         assert updated["etapes"]["extraction_cbz"]["done"] is True
         assert updated["statut_global"] == "en_cours"
 
@@ -181,18 +186,21 @@ class TestStatusManager:
         for etape in ALL_ETAPES:
             mark_etape_done(tmp_chapter, etape)
         status = read_status(tmp_chapter)
+        assert status is not None
         assert status["statut_global"] == "termine"
 
     def test_add_note(self, tmp_chapter):
         from core.status_manager import add_note, read_status
         add_note(tmp_chapter, "Page 5 floue à retraiter")
         status = read_status(tmp_chapter)
+        assert status is not None
         assert any("floue" in n["texte"] for n in status["notes"])
 
     def test_update_integrite(self, tmp_chapter):
         from core.status_manager import update_integrite, read_status
         update_integrite(tmp_chapter, raw_count=10, upscale_count=10, verified=True)
         status = read_status(tmp_chapter)
+        assert status is not None
         assert status["integrite"]["verified"] is True
         assert status["integrite"]["raw_count"] == 10
 
@@ -202,12 +210,14 @@ class TestStatusManager:
             mark_etape_done(tmp_chapter, etape)
         mark_archive(tmp_chapter)
         status = read_status(tmp_chapter)
+        assert status is not None
         assert status["statut_global"] == "archive"
 
     def test_calc_progression(self, tmp_chapter):
         from core.status_manager import mark_etape_done, read_status, calc_progression, ALL_ETAPES
         mark_etape_done(tmp_chapter, ALL_ETAPES[0])
         status = read_status(tmp_chapter)
+        assert status is not None
         pct = calc_progression(status)
         assert 0.0 < pct < 1.0
 
@@ -560,6 +570,7 @@ class TestTempsUpscale:
         from core.status_manager import read_status
         import yaml
         status = read_status(ch_path)
+        assert status is not None
         status["etapes"]["upscale"] = {"done": True, "date": "2026-05-12", "duree": "4m32s", "auto": True}
         with open(os.path.join(ch_path, ".status.yaml"), "w") as f:
             yaml.dump(status, f, allow_unicode=True)
@@ -582,6 +593,7 @@ class TestTempsUpscale:
             create_status(ch_path, f"Chapter {i:02d}", "Cleaner")
             from core.status_manager import read_status
             status = read_status(ch_path)
+            assert status is not None
             status["etapes"]["upscale"] = {"done": True, "date": "2026-05-12", "duree": duree, "auto": True}
             with open(os.path.join(ch_path, ".status.yaml"), "w") as f:
                 yaml.dump(status, f, allow_unicode=True)
@@ -779,6 +791,7 @@ class TestIntegrationCmd001:
             assert os.path.isdir(os.path.join(chapter_path, sd["nom"]))
 
         status = read_status(chapter_path)
+        assert status is not None
         assert status["chapter"] == chapter_name
         assert status["statut_global"] == "non_commence"
 
@@ -852,6 +865,7 @@ class TestIntegrationCmd002:
         update_field(role_path, "config", "qscale_global", 80)
 
         data = read_role_yaml(role_path)
+        assert data is not None
         assert data["config"]["qscale_global"] == 80
 
     def test_list_images_sorted_numerique(self, tmp_path):
@@ -943,6 +957,7 @@ class TestIntegrationCmd008:
         role_path = os.path.join(proj, "01_Clean")
         update_field(role_path, "config", "qscale_global", 75)
         data = read_role_yaml(role_path)
+        assert data is not None
         assert data["config"]["qscale_global"] == 75
 
     def test_qscale_groupe_update(self, tmp_path):
@@ -954,6 +969,7 @@ class TestIntegrationCmd008:
         role_path = os.path.join(proj, "01_Clean")
         update_field(role_path, "config", "qscale_groupe", 88)
         data = read_role_yaml(role_path)
+        assert data is not None
         assert data["config"]["qscale_groupe"] == 88
 
     def test_sous_dossier_ajout(self, tmp_path):
@@ -965,12 +981,14 @@ class TestIntegrationCmd008:
         proj = create_project(str(tmp_path), "Test SousDossier")
         role_path = os.path.join(proj, "01_Clean")
         data = read_role_yaml(role_path)
+        assert data is not None
         sds = data.setdefault("sous_dossiers", [])
         nouveau = {"nom": "05_Archive", "index": len(sds)}
         sds.append(nouveau)
         write_role_yaml(role_path, data)
 
         data2 = read_role_yaml(role_path)
+        assert data2 is not None
         noms = [s.get("nom", s) for s in data2.get("sous_dossiers", [])]
         assert "05_Archive" in noms
 
@@ -982,12 +1000,14 @@ class TestIntegrationCmd008:
         proj = create_project(str(tmp_path), "Test SD Suppression")
         role_path = os.path.join(proj, "01_Clean")
         data = read_role_yaml(role_path)
+        assert data is not None
         data.setdefault("sous_dossiers", [])
         data["sous_dossiers"].append({"nom": "05_Temp", "index": 10})
         write_role_yaml(role_path, data)
 
         # Suppression
         data = read_role_yaml(role_path)
+        assert data is not None
         data["sous_dossiers"] = [
             s for s in data["sous_dossiers"]
             if (s.get("nom", s) if isinstance(s, dict) else s) != "05_Temp"
@@ -995,6 +1015,7 @@ class TestIntegrationCmd008:
         write_role_yaml(role_path, data)
 
         data2 = read_role_yaml(role_path)
+        assert data2 is not None
         noms = [s.get("nom", s) for s in data2.get("sous_dossiers", [])]
         assert "05_Temp" not in noms
 
@@ -1047,6 +1068,7 @@ class TestIntegrationPipelineComplet:
         mark_etape_done(ch_path, "extraction_cbz")
 
         status = read_status(ch_path)
+        assert status is not None
         assert status["etapes"]["extraction_cbz"]["done"] is True
         assert status["statut_global"] == "en_cours"
 
@@ -1062,6 +1084,7 @@ class TestIntegrationPipelineComplet:
         add_entry(project_yaml, "Cleaner", "Chapter 01 — upscale terminé")
 
         status = read_status(ch_path)
+        assert status is not None
         assert status["etapes"]["upscale"]["done"] is True
         assert status["integrite"]["verified"] is True
 
@@ -1090,6 +1113,7 @@ class TestIntegrationPipelineComplet:
 
         # 5. Vérifications finales
         status = read_status(ch_path)
+        assert status is not None
         assert status["statut_global"] == "termine"
         assert os.path.isfile(os.path.join(dst, "merged_output.jpg"))
 
@@ -1107,6 +1131,7 @@ class TestIntegrationPipelineComplet:
 
         # Forcer statut terminé
         status = read_status(ch_path)
+        assert status is not None
         status["statut_global"] = "termine"
         status["etapes"]["upscale"] = {"done": True, "duree": "2m00s", "date": "2026-05-12", "auto": True}
         with open(os.path.join(ch_path, ".status.yaml"), "w") as f:
