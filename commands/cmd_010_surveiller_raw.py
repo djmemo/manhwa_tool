@@ -6,20 +6,18 @@ import os
 import re
 import time
 import threading
-import subprocess
-import sys
-from datetime import datetime, timedelta
-from typing import Optional, Callable
+import queue
+from datetime import datetime
+from typing import Optional
 
 from session import session
 from core.watcher import RawWatcher
 from core.cbz_handler import list_cbz, extract_cbz
-from core.project_manager import list_chapters
 from core.role_manager import get_sous_dossiers
-from core.status_manager import create_status, mark_etape_done, add_note, read_status
+from core.status_manager import create_status, mark_etape_done, add_note
 from core.changelog import add_entry
 from ui.colors import ok, err, warn, info, title, muted
-from ui.menu_engine import _clear, menu as prompt_menu, pause
+from ui.menu_engine import _clear
 from ui.table_renderer import render_table
 
 LABEL = "👁   Surveiller 00_Raw/ (watcher)"
@@ -235,13 +233,13 @@ def display_pipeline_progress(progress: PipelineProgress):
         status_text = ""
 
         if step["status"] == "done":
-            status_text = f"{ok('✔ Done')}"
+            status_text = f"{ok(' Done')}"
         elif step["status"] == "error":
-            status_text = f"{err('✗ Erreur')}"
+            status_text = f"{err(' Erreur')}"
         elif step["status"] == "running":
-            status_text = f"{warn('⏳ En cours')}"
+            status_text = f"{warn(' En cours')}"
         else:  # pending
-            status_text = f"{muted('– En attente')}"
+            status_text = f"{muted(' En attente')}"
 
         duration = progress.get_duration(step_name)
         message = step["error"] if step["error"] else step["message"]
@@ -253,62 +251,16 @@ def display_pipeline_progress(progress: PipelineProgress):
     print(table)
 
 
-def display_post_treatment_menu(progress: PipelineProgress) -> Optional[str]:
-    """
-    Affiche le menu post-traitement via le menu interactif.
-    Retourne: "upscale" | "explorer" | "retour" | "quitter" | None
-    """
-    if not progress.is_success():
-        return "retour"
-
-    print()
-    print(ok(f"✔ Pipeline complété : {progress.chapter_name} créé et {progress.extracted_count} images extraites"))
-    print()
-
-    options = [
-        "Upscale maintenant (cmd_004)",
-        "Afficher les images extraites",
-        "Retourner à la surveillance",
-        "Quitter",
-    ]
-    choice = prompt_menu(
-        "Options post-traitement",
-        options,
-        breadcrumb=session.breadcrumb(),
-        allow_escape=True,
-    )
-
-    if choice is None or choice == 2:
-        return "retour"
-    if choice == 0:
-        return "upscale"
-    if choice == 1:
-        return "explorer"
-    if choice == 3:
-        return "quitter"
-    return "retour"
-
-
-def open_chapter_explorer(chapter_path: str):
-    """Ouvre le dossier du chapitre dans l'explorateur."""
-    if sys.platform == "win32":
-        subprocess.Popen(["explorer", chapter_path])
-    else:
-        # Autres OS (à adapter si nécessaire)
-        pass
-
-
 # ============================================================================
 # PHASE 4 : Intégration dans la surveillance
 # ============================================================================
 
-def on_new_cbz_handler(cbz_name: str, raw_path: str, detected: list):
+def on_new_cbz_handler(cbz_name: str, raw_path: str):
     """
-    Callback de la surveillance.
+    Traite une nouvelle archive CBZ détectée.
     Gère: extraction numéro → validation → pipeline auto → menu post-traitement.
     """
     ts = time.strftime("%H:%M:%S")
-    detected.append(cbz_name)
 
     print()
     print(warn(f"  📥 [{ts}] Nouveau RAW détecté: {cbz_name}"))
@@ -338,27 +290,13 @@ def on_new_cbz_handler(cbz_name: str, raw_path: str, detected: list):
     # === Afficher la progression ===
     display_pipeline_progress(progress)
 
-    # === Gestion des erreurs et menu post-traitement ===
+    # === Gestion des erreurs ===
     if result["status"] == "error":
         print(err(f"\n  ✗ {result.get('error', 'Erreur inconnue')}"))
         return
 
-    # Menu post-traitement
-    action = display_post_treatment_menu(progress)
-
-    if action == "explorer":
-        if progress.chapter_path:
-            open_chapter_explorer(progress.chapter_path)
-            print(info("  Explorateur ouvert."))
-        else:
-            print(err("  Chemin du chapitre introuvable, impossible d'ouvrir l'explorateur."))
-    elif action == "upscale":
-        print(warn("  Upscale automatique : non implémenté (action manuelle recommandée)"))
-    elif action == "quitter":
-        raise KeyboardInterrupt()
-    # "retour" et autres : continuer la surveillance
-
-    print(info(f"  Retour à la surveillance...\n"))
+    print(info(f"  Chapitre {progress.chapter_name} créé et {progress.extracted_count} images extraites."))
+    print(info("  Retour à la surveillance...\n"))
 
 
 def run():
@@ -379,22 +317,38 @@ def run():
     else:
         print(info("  Aucune archive en attente actuellement."))
 
-    print(info("\n  Surveillance active. Appuyez sur Entrée pour arrêter.\n"))
+    print(info(" Surveillance active. Appuyez sur Entrée pour arrêter."))
 
     detected: list[str] = []
+    detected_queue: queue.Queue[str] = queue.Queue()
+    stop_event = threading.Event()
     lock = threading.Lock()
 
     def on_new_cbz_wrapper(filename: str):
         with lock:
-            on_new_cbz_handler(filename, raw_path, detected)
+            if filename not in detected:
+                detected.append(filename)
+            detected_queue.put(filename)
+            print(warn(f"  📥 Nouveau RAW mis en file d'attente : {filename}"))
+
+    def wait_for_stop() -> None:
+        input()
+        stop_event.set()
 
     watcher = RawWatcher(raw_path, on_new_cbz_wrapper)
     watcher.start()
+    stop_thread = threading.Thread(target=wait_for_stop, daemon=True)
+    stop_thread.start()
 
     try:
-        input()  # Bloque jusqu'à Entrée
+        while not stop_event.is_set():
+            try:
+                cbz_name = detected_queue.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            on_new_cbz_handler(cbz_name, raw_path)
     except KeyboardInterrupt:
-        pass
+        stop_event.set()
     finally:
         watcher.stop()
 
