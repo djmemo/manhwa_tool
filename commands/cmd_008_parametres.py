@@ -1,233 +1,221 @@
 """
-cmd_008_parametres.py — Paramètres du projet et du rôle.
-Gestion membres, modèle ESRGAN, qscale, sous-dossiers (CRUD), changelog complet.
+cmd_008 — Paramètres du rôle
+-----------------------------
+Permet de modifier les paramètres du rôle actif :
+  - Modèle Real-ESRGAN (model_esrgan)
+  - Qualité JPEG globale (qscale_global) et par groupe (qscale_groupe)
+  - Paramètres Export/Slicer (hauteur max, formats PNG/JPEG/CBZ)
+  - Liste des membres (ajout / suppression)
+Affiche le changelog du projet en lecture seule.
 """
-import os
-from session import session
-from core.role_manager import (
-    read_role_yaml, write_role_yaml, update_field,
-    add_membre, remove_membre,
-)
-from core.changelog import read_changelog
-from core.project_manager import read_project_yaml
-from ui.colors import title, info, ok, warn, err, separator
-from ui.menu_engine import menu, prompt_text, prompt_int, pause, _clear
+from textual.screen import Screen
+from textual.app import ComposeResult
+from textual.widgets import (Label, Button, Input, DataTable,
+                              Checkbox, TabbedContent, TabPane)
+from textual.containers import VerticalScroll, Horizontal, Vertical
 
-LABEL = "⚙️   Paramètres"
-DESCRIPTION = "Rôle, membres, modèle ESRGAN, qscale, sous-dossiers, changelog"
-
-MODELS = [
-    "realesrgan-x4plus-anime",
-    "realesrgan-x4plus",
-    "realesr-animevideov3",
-    "realesrnet-x4plus",
-]
+LABEL       = "Paramètres"
+DESCRIPTION = "Configuration du rôle actif (modèle, qualité, slicer, membres) et changelog"
 
 
-def run():
-    while True:
-        _clear()
-        role_path = os.path.join(session.projet_chemin, session.role_dossier)
-        role_data = read_role_yaml(role_path) or {}
-        current_model = role_data.get("config", {}).get("model_esrgan", "?")
-        qscale_g = role_data.get("config", {}).get("qscale_global", 95)
-        qscale_gr = role_data.get("config", {}).get("qscale_groupe", 92)
-        membres = role_data.get("role", {}).get("membres", [])
+class ParamScreen(Screen):
+    DEFAULT_CSS = """
+    ParamScreen { padding: 1 2; }
+    .section-title { color: #a8dadc; text-style: bold; margin-top: 1; margin-bottom: 0; }
+    .lbl-champ     { width: 28; }
+    .row-champ     { height: auto; margin-bottom: 1; }
+    #lbl_feedback  { color: #06d6a0; height: 1; }
+    #btn_row       { height: auto; margin-top: 1; }
+    #tbl_changelog { height: 12; }
+    """
 
-        print(title(f"\n  ⚙️   Paramètres — {session.projet_nom} / {session.role_label}\n"))
-        print(info(f"  Modèle ESRGAN   : {current_model}"))
-        print(info(f"  Qualité globale : {qscale_g}  |  Qualité groupe : {qscale_gr}"))
-        print(info(f"  Membres         : {', '.join(membres) if membres else '(aucun)'}"))
-        print()
+    def compose(self) -> ComposeResult:
+        from ui.widgets.breadcrumb import Breadcrumb
+        yield Breadcrumb(id="breadcrumb")
+        yield Label("⚙️  Paramètres du rôle", classes="title")
+        with TabbedContent():
 
-        items = [
-            "📋  Voir le changelog complet",
-            "🤖  Changer le modèle Real-ESRGAN",
-            "🎚️   Modifier les qualités JPEG (qscale)",
-            "👥  Gérer les membres du rôle",
-            "📁  Gérer les sous-dossiers du chapitre",
-            "ℹ️   Infos projet",
-            "⬅  Retour au menu",
-        ]
-        idx = menu("Paramètres", items, breadcrumb=session.breadcrumb())
-        if idx is None or idx == len(items) - 1:
+            # ── Onglet 1 : Rôle & Upscale ────────────────────
+            with TabPane("🎯 Rôle & Upscale", id="tab_role"):
+                with VerticalScroll():
+                    yield Label("Modèle Real-ESRGAN :", classes="section-title")
+                    with Horizontal(classes="row-champ"):
+                        yield Label("model_esrgan :", classes="lbl-champ")
+                        yield Input(id="inp_model", placeholder="realesr-animevideov3")
+
+                    yield Label("Qualité JPEG :", classes="section-title")
+                    with Horizontal(classes="row-champ"):
+                        yield Label("qscale_global (0-100) :", classes="lbl-champ")
+                        yield Input(id="inp_qscale_global", placeholder="95")
+                    with Horizontal(classes="row-champ"):
+                        yield Label("qscale_groupe (0-100) :", classes="lbl-champ")
+                        yield Input(id="inp_qscale_groupe", placeholder="90")
+
+                    yield Label("", id="lbl_feedback")
+                    with Horizontal(id="btn_row"):
+                        yield Button("💾 Sauvegarder", id="btn_save_role", variant="primary")
+                        yield Button("Retour",         id="btn_back",      variant="default")
+
+            # ── Onglet 2 : Export & Slicer ────────────────────
+            with TabPane("🗜 Export & Slicer", id="tab_slicer"):
+                with VerticalScroll():
+                    yield Label("Paramètres du Slicer webtoon :", classes="section-title")
+                    with Horizontal(classes="row-champ"):
+                        yield Label("Hauteur max par tranche (px) :", classes="lbl-champ")
+                        yield Input(id="inp_slicer_height", placeholder="8000")
+
+                    yield Label("Formats générés par le pipeline (cmd_006) :", classes="section-title")
+                    yield Checkbox("Générer PNG",          id="chk_slicer_png",  value=False)
+                    yield Checkbox("Générer JPEG",         id="chk_slicer_jpeg", value=False)
+                    yield Checkbox("Générer CBZ (release)", id="chk_slicer_cbz",  value=True)
+
+                    yield Label("", id="lbl_feedback_slicer")
+                    with Horizontal():
+                        yield Button("💾 Sauvegarder", id="btn_save_slicer", variant="primary")
+                        yield Button("Retour",         id="btn_back_slicer", variant="default")
+
+            # ── Onglet 3 : Membres ────────────────────────────
+            with TabPane("👥 Membres", id="tab_membres"):
+                with VerticalScroll():
+                    yield Label("Membres du rôle actif :", classes="section-title")
+                    yield DataTable(id="tbl_membres")
+                    with Horizontal(classes="row-champ"):
+                        yield Input(id="inp_nouveau_membre", placeholder="Nom du membre")
+                        yield Button("➕ Ajouter",   id="btn_add_membre",  variant="success")
+                        yield Button("🗑 Supprimer", id="btn_del_membre",  variant="error")
+                    yield Label("", id="lbl_feedback_membres")
+                    with Horizontal():
+                        yield Button("💾 Sauvegarder", id="btn_save_membres", variant="primary")
+                        yield Button("Retour",         id="btn_back_membres", variant="default")
+
+            # ── Onglet 4 : Changelog ──────────────────────────
+            with TabPane("📜 Changelog", id="tab_changelog"):
+                with VerticalScroll():
+                    yield Label("Historique du projet (lecture seule) :", classes="section-title")
+                    yield DataTable(id="tbl_changelog")
+                    with Horizontal():
+                        yield Button("🔄 Rafraîchir", id="btn_refresh_cl", variant="default")
+                        yield Button("Retour",        id="btn_back_cl",    variant="default")
+
+    def on_mount(self) -> None:
+        self._charger_role()
+        self._charger_changelog()
+        self._charger_membres()
+
+    def _charger_role(self) -> None:
+        from session import SESSION
+        from core import role_manager
+        data = role_manager.lire_role(SESSION.role_dossier)
+        cfg  = data.get("config", {})
+        self.query_one("#inp_model",         Input).value = str(cfg.get("model_esrgan",    "realesr-animevideov3"))
+        self.query_one("#inp_qscale_global", Input).value = str(cfg.get("qscale_global",   95))
+        self.query_one("#inp_qscale_groupe", Input).value = str(cfg.get("qscale_groupe",   90))
+        self.query_one("#inp_slicer_height", Input).value = str(cfg.get("slicer_max_height", 8000))
+        self.query_one("#chk_slicer_png",  Checkbox).value = bool(cfg.get("slicer_export_png",  False))
+        self.query_one("#chk_slicer_jpeg", Checkbox).value = bool(cfg.get("slicer_export_jpeg", False))
+        self.query_one("#chk_slicer_cbz",  Checkbox).value = bool(cfg.get("slicer_export_cbz",  True))
+
+    def _charger_changelog(self) -> None:
+        from session import SESSION
+        from core import changelog
+        tbl = self.query_one("#tbl_changelog", DataTable)
+        tbl.clear(columns=True)
+        tbl.add_columns("Date", "Rôle", "Action")
+        entrees = changelog.lire_changelog(SESSION.projet_chemin, limit=100)
+        for e in reversed(entrees):
+            tbl.add_row(
+                e.get("date",   ""),
+                e.get("role",   ""),
+                e.get("action", ""))
+
+    def _charger_membres(self) -> None:
+        from session import SESSION
+        from core import role_manager
+        data    = role_manager.lire_role(SESSION.role_dossier)
+        membres = data.get("role", {}).get("membres", [])
+        tbl = self.query_one("#tbl_membres", DataTable)
+        tbl.clear(columns=True)
+        tbl.add_column("Membre")
+        for m in membres:
+            tbl.add_row(str(m))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        from session import SESSION
+        from core import role_manager
+        from ui.notify import notify_ok, notify_err
+
+        bid = event.button.id
+
+        # ── Retour ──────────────────────────────────────────
+        if bid in ("btn_back", "btn_back_slicer", "btn_back_membres", "btn_back_cl"):
+            self.app.pop_screen()
             return
 
-        actions = [
-            _show_changelog,
-            lambda: _change_model(role_path, current_model),
-            lambda: _change_qscale(role_path, role_data),
-            lambda: _manage_membres(role_path),
-            lambda: _manage_sous_dossiers(role_path, role_data),
-            _show_project_info,
-        ]
-        actions[idx]()
+        # ── Sauvegarder rôle & upscale ───────────────────────
+        if bid == "btn_save_role":
+            try:
+                data = role_manager.lire_role(SESSION.role_dossier)
+                cfg  = data.setdefault("config", {})
+                cfg["model_esrgan"]  = self.query_one("#inp_model",         Input).value.strip()
+                cfg["qscale_global"] = int(self.query_one("#inp_qscale_global", Input).value or 95)
+                cfg["qscale_groupe"] = int(self.query_one("#inp_qscale_groupe", Input).value or 90)
+                role_manager.sauvegarder_role(SESSION.role_dossier, data)
+                self.query_one("#lbl_feedback", Label).update("✅ Paramètres rôle sauvegardés")
+                notify_ok(self.app, "Paramètres rôle sauvegardés.")
+            except Exception as e:
+                notify_err(self.app, f"Erreur : {e}")
+            return
+
+        # ── Sauvegarder slicer ────────────────────────────────
+        if bid == "btn_save_slicer":
+            try:
+                data = role_manager.lire_role(SESSION.role_dossier)
+                cfg  = data.setdefault("config", {})
+                cfg["slicer_max_height"]  = int(self.query_one("#inp_slicer_height", Input).value or 8000)
+                cfg["slicer_export_png"]  = self.query_one("#chk_slicer_png",  Checkbox).value
+                cfg["slicer_export_jpeg"] = self.query_one("#chk_slicer_jpeg", Checkbox).value
+                cfg["slicer_export_cbz"]  = self.query_one("#chk_slicer_cbz",  Checkbox).value
+                role_manager.sauvegarder_role(SESSION.role_dossier, data)
+                self.query_one("#lbl_feedback_slicer", Label).update("✅ Paramètres slicer sauvegardés")
+                notify_ok(self.app, "Paramètres slicer sauvegardés.")
+            except Exception as e:
+                notify_err(self.app, f"Erreur : {e}")
+            return
+
+        # ── Membres ───────────────────────────────────────────
+        if bid == "btn_add_membre":
+            nom = self.query_one("#inp_nouveau_membre", Input).value.strip()
+            if nom:
+                data    = role_manager.lire_role(SESSION.role_dossier)
+                membres = data.setdefault("role", {}).setdefault("membres", [])
+                if nom not in membres:
+                    membres.append(nom)
+                    role_manager.sauvegarder_role(SESSION.role_dossier, data)
+                    self._charger_membres()
+                    self.query_one("#inp_nouveau_membre", Input).value = ""
+
+        if bid == "btn_del_membre":
+            tbl = self.query_one("#tbl_membres", DataTable)
+            if tbl.cursor_row is not None:
+                try:
+                    nom  = str(tbl.get_cell_at((tbl.cursor_row, 0)))
+                    data = role_manager.lire_role(SESSION.role_dossier)
+                    membres = data.get("role", {}).get("membres", [])
+                    if nom in membres:
+                        membres.remove(nom)
+                        role_manager.sauvegarder_role(SESSION.role_dossier, data)
+                        self._charger_membres()
+                except Exception:
+                    pass
+
+        if bid == "btn_save_membres":
+            notify_ok(self.app, "Membres sauvegardés.")
+
+        if bid == "btn_refresh_cl":
+            self._charger_changelog()
 
 
-# ── Changelog ─────────────────────────────────────────────────────────────────
-
-def _show_changelog():
-    _clear()
-    project_yaml = os.path.join(session.projet_chemin, ".project.yaml")
-    entries = read_changelog(project_yaml)
-    print(title(f"\n  📋  Changelog — {session.projet_nom}\n"))
-    print(separator(70))
-    if not entries:
-        print(info("  Aucune entrée dans le changelog."))
-    else:
-        for e in entries:
-            date = e.get("date", "")
-            role = e.get("role", "")
-            action = e.get("action", "")
-            print(f"  {date}  [{role}]  {action}")
-    print(separator(70))
-    print(info(f"\n  Total : {len(entries)} entrée(s)"))
-    pause()
-
-
-# ── Modèle ESRGAN ─────────────────────────────────────────────────────────────
-
-def _change_model(role_path: str, current: str):
-    _clear()
-    print(info(f"  Modèle actuel : {current}\n"))
-    idx = menu("Choisir le nouveau modèle", MODELS, breadcrumb=session.breadcrumb())
-    if idx is not None:
-        update_field(role_path, "config", "model_esrgan", MODELS[idx])
-        print(ok(f"\n  ✔ Modèle mis à jour : {MODELS[idx]}"))
-        pause()
-
-
-# ── QScale ────────────────────────────────────────────────────────────────────
-
-def _change_qscale(role_path: str, role_data: dict):
-    _clear()
-    cfg = role_data.get("config", {})
-    print(title("\n  🎚️   Qualités JPEG\n"))
-    print(info(f"  qscale_global  (fusion globale)  : {cfg.get('qscale_global', 95)}"))
-    print(info(f"  qscale_groupe  (fusion par groupe): {cfg.get('qscale_groupe', 92)}\n"))
-
-    items = ["Modifier qscale_global", "Modifier qscale_groupe", "⬅  Retour"]
-    idx = menu("Qscale", items, breadcrumb=session.breadcrumb())
-    if idx is None or idx == 2:
+def run(app=None) -> None:
+    if not app:
         return
-
-    field = "qscale_global" if idx == 0 else "qscale_groupe"
-    default = cfg.get(field, 95 if idx == 0 else 92)
-    val = prompt_int(f"  Nouvelle valeur (1-100, actuelle {default})", default=default)
-    val = max(1, min(100, val))
-    update_field(role_path, "config", field, val)
-    print(ok(f"\n  ✔ {field} = {val}"))
-    pause()
-
-
-# ── Membres ───────────────────────────────────────────────────────────────────
-
-def _manage_membres(role_path: str):
-    while True:
-        _clear()
-        role_data = read_role_yaml(role_path) or {}
-        membres = role_data.get("role", {}).get("membres", [])
-        print(title(f"\n  👥  Membres — {session.role_label}\n"))
-
-        items = membres + ["➕  Ajouter un membre", "⬅  Retour"]
-        idx = menu("Membres", items, breadcrumb=session.breadcrumb())
-        if idx is None or idx == len(items) - 1:
-            return
-
-        if idx == len(membres):
-            nom = prompt_text("  Nom du nouveau membre")
-            if nom:
-                add_membre(role_path, nom)
-                print(ok(f"  ✔ {nom} ajouté."))
-                pause()
-        else:
-            nom = membres[idx]
-            items2 = [f"🗑  Supprimer '{nom}'", "⬅  Retour"]
-            choice = menu(f"Membre : {nom}", items2, breadcrumb=session.breadcrumb())
-            if choice == 0:
-                remove_membre(role_path, nom)
-                print(ok(f"  ✔ {nom} supprimé."))
-                pause()
-
-
-# ── Sous-dossiers CRUD ────────────────────────────────────────────────────────
-
-def _manage_sous_dossiers(role_path: str, role_data: dict):
-    """
-    Affiche et permet d'ajouter/supprimer des sous-dossiers dans .role.yaml.
-    Attention : ne crée/supprime PAS les dossiers physiques existants.
-    """
-    while True:
-        _clear()
-        role_data = read_role_yaml(role_path) or {}
-        sous_dossiers = role_data.get("sous_dossiers", [])
-        print(title(f"\n  📁  Sous-dossiers — {session.role_label}\n"))
-
-        noms = [sd.get("nom", sd) if isinstance(sd, dict) else sd for sd in sous_dossiers]
-        items = noms + ["➕  Ajouter un sous-dossier", "⬅  Retour"]
-        idx = menu("Sous-dossiers", items, breadcrumb=session.breadcrumb())
-
-        if idx is None or idx == len(items) - 1:
-            return
-
-        if idx == len(noms):
-            # Ajouter
-            nom = prompt_text("  Nom du sous-dossier (ex: 05_Archive)")
-            if nom:
-                role_data = read_role_yaml(role_path) or {}
-                sds = role_data.setdefault("sous_dossiers", [])
-                existing_noms = [s.get("nom", s) if isinstance(s, dict) else s for s in sds]
-                if nom in existing_noms:
-                    print(warn(f"  '{nom}' existe déjà."))
-                else:
-                    sds.append({"nom": nom, "index": len(sds)})
-                    write_role_yaml(role_path, role_data)
-                    print(ok(f"  ✔ Sous-dossier '{nom}' ajouté à .role.yaml"))
-                    print(warn("  Note : le dossier physique n'est pas créé automatiquement."))
-                pause()
-        else:
-            # Supprimer
-            nom_sd = noms[idx]
-            items2 = [f"🗑  Supprimer '{nom_sd}' de la config", "⬅  Retour"]
-            choice = menu(f"Sous-dossier : {nom_sd}", items2, breadcrumb=session.breadcrumb())
-            if choice == 0:
-                role_data = read_role_yaml(role_path) or {}
-                sds = role_data.get("sous_dossiers", [])
-                role_data["sous_dossiers"] = [
-                    s for s in sds
-                    if (s.get("nom", s) if isinstance(s, dict) else s) != nom_sd
-                ]
-                write_role_yaml(role_path, role_data)
-                print(ok(f"  ✔ '{nom_sd}' supprimé de la config."))
-                print(warn("  Note : le dossier physique n'est pas supprimé."))
-                pause()
-
-
-# ── Infos projet ──────────────────────────────────────────────────────────────
-
-def _show_project_info():
-    _clear()
-    data = read_project_yaml(session.projet_chemin)
-    proj = data.get("project", {})
-    stats = data.get("stats", {})
-    prog = data.get("progression", {})
-    roles = data.get("roles_declares", [])
-
-    print(title(f"\n  ℹ️   Infos projet — {session.projet_nom}\n"))
-    print(separator(60))
-    print(info(f"  Nom             : {proj.get('name', '?')}"))
-    print(info(f"  Créé le         : {proj.get('created_at', '?')}"))
-    print(info(f"  Racine          : {proj.get('racine_osirisscan', '?')}"))
-    print(info(f"  Chemin          : {session.projet_chemin}"))
-    print(separator(60))
-    print(info(f"  Terminés        : {stats.get('chapitres_termines', 0)}"))
-    print(info(f"  En cours        : {stats.get('chapitres_en_cours', 0)}"))
-    print(info(f"  Dernier terminé : ch.{prog.get('dernier_chapitre_termine', 0)}"))
-    print(info(f"  Prochain        : ch.{prog.get('prochain_chapitre', 1)}"))
-    print(info(f"  Temps upscale   : {stats.get('temps_total_upscale', '0:00:00')}"))
-    print(info(f"  Dernière activ. : {stats.get('derniere_activite', '?')}"))
-    print(separator(60))
-    print(info(f"  Rôles déclarés  :"))
-    for r in roles:
-        print(f"    • {r.get('label', '?')}  ({r.get('dossier', '?')})")
-    pause()
+    app.push_screen(ParamScreen())

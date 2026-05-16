@@ -1,6 +1,4 @@
-console:
-  largeur_banniere: 80
 machine:
-  racine_osirisscan: G:\test_scantrad
+  racine_scantrad: G:\test_scantrad
 upscale:
-  exe_path: G:\8a5774da\manhwa_tool\logiciels\realesrgan-ncnn-vulkan-20220424-windows\realesrgan-ncnn-vulkan.exe
+  exe_path: G:\realesrgan-ncnn-vulkan-20220424-windows\realesrgan-ncnn-vulkan.exe

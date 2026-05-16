@@ -1,95 +1,109 @@
 """
-cmd_002_fusion_globale.py — Fusion globale de toutes les images JPEG.
-Qualité JPEG lue depuis .role.yaml > config.qscale_global (défaut 95).
+cmd_002 — Fusion globale
+-------------------------
+Prend toutes les images de 03_Clean_JPEG et les empile verticalement
+dans 04_Final_Merged/merged_output.png.
+Le format PNG est utilisé car il n'a pas de limite de hauteur (contrairement au JPEG).
 """
 import os
+from datetime import datetime
 from PIL import Image
-from session import session
-from core.role_manager import read_role_yaml
-from core.status_manager import mark_etape_done
-from core.project_manager import list_chapters
-from core.changelog import add_entry
-from ui.colors import ok, warn, info, title
-from ui.menu_engine import menu, pause, _clear
-from ui.progress_bar import ProgressBar
 
-LABEL = "🔗  Fusion globale JPEG"
-DESCRIPTION = "Fusionne toutes les images de 04_Clean_JPEG/ en merged_output.jpg"
+LABEL       = "Fusion globale"
+DESCRIPTION = "Fusionne toutes les images de 03_Clean_JPEG en un seul PNG sans limite de hauteur"
 
 
-def run():
-    _clear()
-    role_path = os.path.join(session.projet_chemin, session.role_dossier)
-    chapters = list_chapters(role_path)
-    if not chapters:
-        print(warn("  Aucun chapitre disponible."))
-        pause()
-        return
+def _dimensions(images_paths: list[str]) -> tuple[int, int]:
+    """Calcule (largeur_max, hauteur_totale) sans tout garder en RAM."""
+    largeur, hauteur = 0, 0
+    for p in images_paths:
+        with Image.open(p) as img:
+            largeur = max(largeur, img.width)
+            hauteur += img.height
+    return largeur, hauteur
 
-    idx = menu("Choisir le chapitre", chapters, breadcrumb=session.breadcrumb())
-    if idx is None:
-        return
 
-    chapter_name = chapters[idx]
-    chapter_path = os.path.join(role_path, chapter_name)
-    src_path = os.path.join(chapter_path, "04_Clean_JPEG")
-    dst_path = os.path.join(chapter_path, "05_Final_Merged")
+def fusionner_images(
+    images_paths: list[str],
+    out_dir: str,
+    app=None,
+    pb=None,
+) -> str:
+    """
+    Fusionne verticalement les images en un seul fichier PNG.
+    PNG n'a pas de limite de hauteur → pas de découpe nécessaire.
+    Retourne le chemin du fichier produit.
+    """
+    total = len(images_paths)
+    largeur, hauteur_totale = _dimensions(images_paths)
 
-    # Lire la qualité depuis .role.yaml
-    role_data = read_role_yaml(role_path) or {}
-    quality = int(role_data.get("config", {}).get("qscale_global", 95))
+    if largeur == 0 or hauteur_totale == 0:
+        raise ValueError("Images vides ou illisibles")
 
-    images = _list_images_sorted(src_path)
-    if not images:
-        print(warn("  Aucune image dans 04_Clean_JPEG/"))
-        pause()
-        return
-
-    os.makedirs(dst_path, exist_ok=True)
-    _clear()
-    print(title(f"\n  🔗  Fusion globale — {chapter_name}\n"))
-    print(info(f"  {len(images)} image(s) | qualité JPEG : {quality}\n"))
-
-    bar = ProgressBar(len(images), label="Chargement")
-    loaded = []
-    for i, img_name in enumerate(images):
-        img = Image.open(os.path.join(src_path, img_name)).convert("RGB")
-        loaded.append(img)
-        bar.update(i + 1, suffix=img_name)
-    bar.done("Chargement terminé")
-
-    total_height = sum(im.height for im in loaded)
-    width = max(im.width for im in loaded)
-    merged = Image.new("RGB", (width, total_height), (255, 255, 255))
-
+    canvas = Image.new("RGB", (largeur, hauteur_totale))
     y = 0
-    for im in loaded:
-        merged.paste(im, (0, y))
-        y += im.height
 
-    out_path = os.path.join(dst_path, "merged_output.jpg")
-    merged.save(out_path, "JPEG", quality=quality)
+    for i, p in enumerate(images_paths):
+        with Image.open(p) as img:
+            rgb = img.convert("RGB")
+            canvas.paste(rgb, (0, y))
+            y += rgb.height
+        if pb and app:
+            app.call_from_thread(pb.set_info, f"Fusion : {i + 1}/{total}")
 
-    mark_etape_done(chapter_path, "fusion_finale")
-    project_yaml = os.path.join(session.projet_chemin, ".project.yaml")
-    add_entry(
-        project_yaml, session.role_label,
-        f"{chapter_name} — fusion globale ({len(images)} pages, qualité {quality})"
-    )
-
-    print(ok(f"\n  ✔ Fusion terminée → {out_path}"))
-    pause()
+    out_path = os.path.join(out_dir, "merged_output.png")
+    canvas.save(out_path, "PNG")
+    canvas.close()
+    return out_path
 
 
-def _list_images_sorted(path: str) -> list[str]:
-    import re
-    if not os.path.isdir(path):
-        return []
-    exts = {".jpg", ".jpeg", ".png", ".webp"}
-    files = [f for f in os.listdir(path) if os.path.splitext(f.lower())[1] in exts]
+def run(app=None) -> None:
+    if not app:
+        return
 
-    def sort_key(name: str):
-        nums = re.findall(r"\d+", name)
-        return [int(n) for n in nums] if nums else [0]
+    from session import SESSION
+    from core import role_manager, status_manager, changelog
+    from core.utils import lister_images, run_in_worker
+    from ui.screens.screen_progression import ProgressionScreen
+    from ui.notify import notify_err, notify_ok
 
-    return sorted(files, key=sort_key)
+    ch_chemin = os.path.join(SESSION.role_dossier, SESSION.chapitre_actif)
+    src_dir   = os.path.join(ch_chemin, "03_Clean_JPEG")
+    out_dir   = os.path.join(ch_chemin, "04_Final_Merged")
+
+    os.makedirs(out_dir, exist_ok=True)
+    images = lister_images(src_dir)
+
+    if not images:
+        notify_err(app, f"Aucune image trouvée dans {src_dir}")
+        return
+
+    progression_screen = ProgressionScreen(titre=f"Fusion globale — {SESSION.chapitre_actif}")
+    app.push_screen(progression_screen)
+
+    def fusion_worker():
+        try:
+            debut    = datetime.now()
+            out_path = fusionner_images(images, out_dir, app, progression_screen)
+            duree    = str(datetime.now() - debut).split(".")[0]
+
+            status_manager.marquer_etape(ch_chemin, "fusion_finale", duree)
+            changelog.ajouter_entree(
+                SESSION.projet_chemin, SESSION.role_label,
+                f"{SESSION.chapitre_actif} — fusion globale en {duree}"
+            )
+
+            def on_success():
+                progression_screen.dismiss()
+                notify_ok(app, f"✅ Fusion terminée en {duree}\n{os.path.basename(out_path)}")
+
+            app.call_from_thread(on_success)
+
+        except Exception as e:
+            err = str(e)
+            def on_error():
+                progression_screen.dismiss()
+                notify_err(app, f"Erreur de fusion : {err}")
+            app.call_from_thread(on_error)
+
+    run_in_worker(fusion_worker)

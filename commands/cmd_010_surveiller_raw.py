@@ -1,361 +1,120 @@
 """
-cmd_010_surveiller_raw.py — Surveillance en temps réel de 00_Raw/.
-Détecte automatiquement nouveaux CBZ et lance pipeline auto : créer chapitre → extraire images.
+cmd_010 — Watchdog 00_Raw
+--------------------------
+Surveille le dossier 00_Raw en tâche de fond (Watchdog).
+Dès qu'un nouveau .cbz ou .zip est détecté :
+  1. Extraction automatique vers 01_Original_RAW
+  2. Upscale automatique via Real-ESRGAN vers 02_Upscale_RAW
+  3. Vérification d'intégrité + mise à jour .status.yaml
+Relancer la commande pour arrêter le watcher.
 """
 import os
-import re
-import time
-import threading
-import queue
+import subprocess
 from datetime import datetime
-from typing import Optional
 
-from session import session
-from core.watcher import RawWatcher
-from core.cbz_handler import list_cbz, extract_cbz
-from core.role_manager import get_sous_dossiers
-from core.status_manager import create_status, mark_etape_done, add_note
-from core.changelog import add_entry
-from ui.colors import ok, err, warn, info, title, muted
-from ui.menu_engine import _clear
-from ui.table_renderer import render_table
-
-LABEL = "👁   Surveiller 00_Raw/ (watcher)"
-DESCRIPTION = "Surveillance réactive : crée automatiquement chapitre + extraction au nouveau CBZ"
-
-
-# ============================================================================
-# PHASE 1 : Classes et utilitaires de pipeline
-# ============================================================================
-
-class PipelineProgress:
-    """Suivi de la progression du pipeline auto-traitement."""
-
-    def __init__(self):
-        self.start_time = datetime.now()
-        self.steps = {
-            "creation_chapitre": {
-                "status": "pending",
-                "start": None,
-                "end": None,
-                "message": "",
-                "error": None,
-            },
-            "extraction_images": {
-                "status": "pending",
-                "start": None,
-                "end": None,
-                "message": "",
-                "error": None,
-            },
-        }
-        self.chapter_name: Optional[str] = None
-        self.chapter_path: Optional[str] = None
-        self.extracted_count: int = 0
-        self.overall_error: Optional[str] = None
-
-    def start_step(self, step_name: str):
-        """Marque le début d'une étape."""
-        if step_name in self.steps:
-            self.steps[step_name]["status"] = "running"
-            self.steps[step_name]["start"] = datetime.now()
-
-    def finish_step(self, step_name: str, message: str = "", error: Optional[str] = None):
-        """Marque la fin d'une étape."""
-        if step_name in self.steps:
-            self.steps[step_name]["end"] = datetime.now()
-            self.steps[step_name]["status"] = "error" if error else "done"
-            self.steps[step_name]["message"] = message
-            self.steps[step_name]["error"] = error
-
-    def get_duration(self, step_name: str) -> str:
-        """Retourne la durée formatée d'une étape."""
-        step = self.steps.get(step_name)
-        if not step or not step["start"] or not step["end"]:
-            return "—"
-        delta = step["end"] - step["start"]
-        total_seconds = int(delta.total_seconds())
-        minutes, seconds = divmod(total_seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        if hours > 0:
-            return f"{hours}:{minutes:02d}:{seconds:02d}"
-        return f"{minutes}:{seconds:02d}"
-
-    def is_success(self) -> bool:
-        """Retourne True si toutes les étapes sont success."""
-        return all(
-            s["status"] == "done"
-            for s in self.steps.values()
-        )
-
-
-def extract_chapter_number(cbz_name: str) -> Optional[int]:
-    """
-    Extrait le numéro de chapitre du nom du CBZ.
-    Formats supportés:
-      - chapitre_42
-      - Chapter 42_4dc41b
-      - 42_raw.cbz
-    Retourne None si aucun numéro trouvé.
-    """
-    # Format 1: chapitre_NN ou chapter NN[_suffix]
-    match = re.search(r'(?:chapitre|chapter)[_\s]+(\d+)', cbz_name, re.IGNORECASE)
-    if match:
-        return int(match.group(1))
-
-    # Format 2: NN_ (au début du nom)
-    match = re.search(r'^(\d+)_', cbz_name)
-    if match:
-        return int(match.group(1))
-
-    return None
-
-
-def chapter_exists(role_path: str, chapter_num: int) -> bool:
-    """Vérifie si un chapitre X existe déjà."""
-    chapter_name = f"Chapter {chapter_num:02d}"
-    chapter_path = os.path.join(role_path, chapter_name)
-    return os.path.isdir(chapter_path)
-
-
-# ============================================================================
-# PHASE 2 : Pipeline automatique
-# ============================================================================
-
-def auto_pipeline(
-    cbz_name: str,
-    chapter_num: int,
-    progress: PipelineProgress,
-    raw_path: str,
-) -> dict:
-    """
-    Pipeline auto: créer chapitre → extraire images.
-    Retourne: {"status": "success|error", "chapter": "Chapter 03", "extracted_count": 142}
-    """
-    project_path = session.projet_chemin
-    role_path = os.path.join(project_path, session.role_dossier)
-
-    # === ÉTAPE 1 : Créer le chapitre ===
-    progress.start_step("creation_chapitre")
-    try:
-        chapter_name = f"Chapter {chapter_num:02d}"
-        chapter_path = os.path.join(role_path, chapter_name)
-
-        if os.path.isdir(chapter_path):
-            raise ValueError(f"Le chapitre {chapter_name} existe déjà.")
-
-        # Créer dossier et sous-dossiers
-        sous_dossiers = get_sous_dossiers(role_path)
-        os.makedirs(chapter_path, exist_ok=True)
-        for sd in sous_dossiers:
-            os.makedirs(os.path.join(chapter_path, sd["nom"]), exist_ok=True)
-
-        # Créer .status.yaml
-        create_status(chapter_path, chapter_name, session.role_label)
-
-        # Log dans changelog
-        project_yaml = os.path.join(project_path, ".project.yaml")
-        add_entry(project_yaml, session.role_label, f"{chapter_name} — dossier créé (auto)")
-
-        progress.chapter_name = chapter_name
-        progress.chapter_path = chapter_path
-        progress.finish_step("creation_chapitre", f"{chapter_name} créé")
-
-    except Exception as ex:
-        progress.finish_step(
-            "creation_chapitre",
-            error=str(ex)
-        )
-        progress.overall_error = f"Erreur création chapitre: {str(ex)}"
-        return {"status": "error", "error": progress.overall_error}
-
-    # === ÉTAPE 2 : Extraire les images ===
-    progress.start_step("extraction_images")
-    try:
-        cbz_path = os.path.join(raw_path, cbz_name)
-        if not os.path.isfile(cbz_path):
-            raise FileNotFoundError(f"Archive introuvable: {cbz_path}")
-
-        dest_path = os.path.join(progress.chapter_path, "01_Original_RAW")
-        extracted = extract_cbz(cbz_path, dest_path)
-
-        if not extracted:
-            raise ValueError("Aucune image extraite (archive vide ou format non supporté)")
-
-        # Marquer l'étape comme done
-        mark_etape_done(progress.chapter_path, "extraction_cbz")
-
-        # Log changelog
-        add_entry(
-            project_yaml,
-            session.role_label,
-            f"{progress.chapter_name} — extraction CBZ '{cbz_name}' ({len(extracted)} images)"
-        )
-
-        # Ajouter note dans .status.yaml
-        note = f"Auto-détecté par surveillance [{time.strftime('%H:%M:%S')}] : {len(extracted)} images extraites"
-        add_note(progress.chapter_path, note)
-
-        progress.extracted_count = len(extracted)
-        progress.finish_step(
-            "extraction_images",
-            f"{len(extracted)} images extraites"
-        )
-
-    except Exception as ex:
-        progress.finish_step(
-            "extraction_images",
-            error=str(ex)
-        )
-        progress.overall_error = f"Erreur extraction: {str(ex)}"
-        return {"status": "error", "error": progress.overall_error}
-
-    return {
-        "status": "success",
-        "chapter": progress.chapter_name,
-        "chapter_path": progress.chapter_path,
-        "extracted_count": progress.extracted_count,
-    }
-
-
-# ============================================================================
-# PHASE 3 : Affichage et interaction
-# ============================================================================
-
-def display_pipeline_progress(progress: PipelineProgress):
-    """Affiche un tableau de progression du pipeline."""
-    print()
-    headers = ["Étape", "Statut", "Durée", "Message"]
-    rows = []
-
-    for step_name in ["creation_chapitre", "extraction_images"]:
-        step = progress.steps[step_name]
-        status_text = ""
-
-        if step["status"] == "done":
-            status_text = f"{ok(' Done')}"
-        elif step["status"] == "error":
-            status_text = f"{err(' Erreur')}"
-        elif step["status"] == "running":
-            status_text = f"{warn(' En cours')}"
-        else:  # pending
-            status_text = f"{muted(' En attente')}"
-
-        duration = progress.get_duration(step_name)
-        message = step["error"] if step["error"] else step["message"]
-
-        display_step = step_name.replace("_", " ").title()
-        rows.append([display_step, status_text, duration, message])
-
-    table = render_table(headers, rows, col_widths=[25, 20, 12, 40])
-    print(table)
-
-
-# ============================================================================
-# PHASE 4 : Intégration dans la surveillance
-# ============================================================================
-
-def on_new_cbz_handler(cbz_name: str, raw_path: str):
-    """
-    Traite une nouvelle archive CBZ détectée.
-    Gère: extraction numéro → validation → pipeline auto → menu post-traitement.
-    """
-    ts = time.strftime("%H:%M:%S")
-
-    print()
-    print(warn(f"  📥 [{ts}] Nouveau RAW détecté: {cbz_name}"))
-
-    # === Extraction et validation du numéro ===
-    chapter_num = extract_chapter_number(cbz_name)
-    if chapter_num is None:
-        print(err(f"  ✗ Impossible d'extraire le numéro du chapitre de '{cbz_name}'"))
-        print(info(f"     Format attendu: '*_chapitre_42.cbz' ou '42_raw.cbz'"))
+LABEL       = "Surveiller RAW"
+DESCRIPTION = 'Démarre/Arrête le Watchdog — Auto-Extraction + Auto-Upscale à chaque nouveau CBZ'
+def run(app=None) -> None:
+    if not app:
         return
 
-    print(info(f"  → Numéro chapitre détecté: {chapter_num}"))
+    from session import SESSION
+    from core import watcher, changelog
+    from ui.notify import notify_ok, notify_warn, notify_err
 
-    # === Vérification: chapitre existe déjà ? ===
-    role_path = os.path.join(session.projet_chemin, session.role_dossier)
-    if chapter_exists(role_path, chapter_num):
-        print(warn(f"  ⚠  Chapitre {chapter_num} existe déjà."))
-        print(info("  → Extraction manuelle recommandée (cmd_005)."))
+    # ── Toggle ──────────────────────────────────────────────────
+    if app._watcher_observer and app._watcher_observer.is_alive():
+        watcher.arreter_watcher(app._watcher_observer)
+        app._watcher_observer = None
+        changelog.ajouter_entree(SESSION.projet_chemin, SESSION.role_label, "Watchdog arrêté")
+        notify_warn(app, "🔴 Watchdog arrêté.")
         return
 
-    # === Lancer le pipeline ===
-    print(info(f"  → Lancement du pipeline automatique...\n"))
-    progress = PipelineProgress()
+    raw_dir  = os.path.join(SESSION.projet_chemin, "00_Raw")
+    role_dir = SESSION.role_dossier
 
-    result = auto_pipeline(cbz_name, chapter_num, progress, raw_path)
-
-    # === Afficher la progression ===
-    display_pipeline_progress(progress)
-
-    # === Gestion des erreurs ===
-    if result["status"] == "error":
-        print(err(f"\n  ✗ {result.get('error', 'Erreur inconnue')}"))
+    if not os.path.exists(raw_dir):
+        notify_err(app, f"Dossier 00_Raw introuvable : {raw_dir}")
         return
 
-    print(info(f"  Chapitre {progress.chapter_name} créé et {progress.extracted_count} images extraites."))
-    print(info("  Retour à la surveillance...\n"))
+    from config_loader import CFG
+    from core.utils import run_in_worker, normaliser_nom_chapitre
+    from core import cbz_handler, status_manager, integrity_checker, role_manager
 
+    def on_new_cbz(archive_path: str) -> None:
+        """Callback déclenché par watchdog — s'exécute dans le thread watchdog."""
+        archive_name = os.path.basename(archive_path)
+        # FIX a) normalisation du nom de chapitre (Chapter 084, pas Chapter 84_f2f748)
+        nom_chapitre = normaliser_nom_chapitre(archive_name)
+        ch_chemin    = os.path.join(role_dir, nom_chapitre)
+        dst_dir      = os.path.join(ch_chemin, "01_Original_RAW")
 
-def run():
-    _clear()
-    raw_path = os.path.join(session.projet_chemin, "00_Raw")
+        try:
+            # ── Init dossiers si nécessaire ──────────────────────
+            if not os.path.exists(ch_chemin):
+                role_manager.init_sous_dossiers(role_dir, nom_chapitre)
+                status_manager.creer_status(ch_chemin, nom_chapitre, SESSION.role_label)
 
-    if not os.path.isdir(raw_path):
-        print(err(f"\n  Dossier 00_Raw/ introuvable : {raw_path}"))
-        input("  [Entrée] ")
-        return
+            # ── Extraction ───────────────────────────────────────
+            # FIX b) archive_path est déjà le chemin complet
+            count = cbz_handler.extraire(archive_path, dst_dir)
+            status_manager.marquer_etape(ch_chemin, "extraction_cbz", "auto")
+            app.call_from_thread(notify_ok, app, f"📦 {nom_chapitre} extrait ({count} images)")
 
-    pending = list_cbz(raw_path)
-    print(title(f"\n  👁   Surveillance — {session.projet_nom} / 00_Raw/\n"))
-    if pending:
-        print(warn(f"  {len(pending)} archive(s) déjà en attente :"))
-        for c in pending:
-            print(f"    • {c}")
-    else:
-        print(info("  Aucune archive en attente actuellement."))
+            if count == 0:
+                app.call_from_thread(notify_warn, app,
+                    f"⚠️ {nom_chapitre} : 0 image extraite — archive vide ou format inconnu ?")
+                return
 
-    print(info(" Surveillance active. Appuyez sur Entrée pour arrêter."))
+            # ── Upscale automatique ──────────────────────────────
+            # FIX c) exe lu depuis CFG (même source que cmd_004)
+            exe   = CFG.upscale.get("exe_path", "realesrgan-ncnn-vulkan")
+            model = role_manager.lire_role(role_dir).get("config", {}).get(
+                        "model_esrgan", "realesr-animevideov3")
 
-    detected: list[str] = []
-    detected_queue: queue.Queue[str] = queue.Queue()
-    stop_event = threading.Event()
-    lock = threading.Lock()
+            if not os.path.isfile(exe):
+                app.call_from_thread(notify_warn, app,
+                    f"⚠️ Real-ESRGAN introuvable ({exe}) — upscale ignoré.")
+                return
 
-    def on_new_cbz_wrapper(filename: str):
-        with lock:
-            if filename not in detected:
-                detected.append(filename)
-            detected_queue.put(filename)
-            print(warn(f"  📥 Nouveau RAW mis en file d'attente : {filename}"))
+            upscale_dir = os.path.join(ch_chemin, "02_Upscale_RAW")
+            os.makedirs(upscale_dir, exist_ok=True)
 
-    def wait_for_stop() -> None:
-        input()
-        stop_event.set()
+            debut  = datetime.now()
+            result = subprocess.run(
+                [exe, "-i", dst_dir, "-o", upscale_dir, "-n", model],
+                capture_output=True, text=True
+            )
+            duree = str(datetime.now() - debut).split(".")[0]
 
-    watcher = RawWatcher(raw_path, on_new_cbz_wrapper)
-    watcher.start()
-    stop_thread = threading.Thread(target=wait_for_stop, daemon=True)
-    stop_thread.start()
+            if result.returncode == 0:
+                check = integrity_checker.verifier(dst_dir, upscale_dir)
+                status_manager.mettre_a_jour_integrite(
+                    ch_chemin, check["raw_count"], check["upscale_count"], check["verified"])
+                if check["verified"]:
+                    status_manager.marquer_etape(ch_chemin, "upscale", duree)
+                    changelog.ajouter_entree(
+                        SESSION.projet_chemin, SESSION.role_label,
+                        f"{nom_chapitre} — auto-extraction + upscale en {duree}")
+                    app.call_from_thread(notify_ok, app, f"✅ {nom_chapitre} upscalé en {duree}")
+                else:
+                    app.call_from_thread(notify_warn, app,
+                        f"⚠️ {nom_chapitre} : intégrité échouée "
+                        f"({check['raw_count']} RAW vs {check['upscale_count']} Upscale)")
+            else:
+                err = result.stderr.strip()[:120] if result.stderr else "inconnu"
+                app.call_from_thread(notify_warn, app,
+                    f"⚠️ Upscale échoué pour {nom_chapitre} : {err}")
 
-    try:
-        while not stop_event.is_set():
-            try:
-                cbz_name = detected_queue.get(timeout=0.2)
-            except queue.Empty:
-                continue
-            on_new_cbz_handler(cbz_name, raw_path)
-    except KeyboardInterrupt:
-        stop_event.set()
-    finally:
-        watcher.stop()
+        except Exception as e:
+            app.call_from_thread(notify_warn, app, f"Erreur Watchdog sur {nom_chapitre} : {e}")
 
-    if detected:
-        print(ok(f"\n  Surveillance arrêtée. {len(detected)} CBZ détecté(s) :"))
-        for f in detected:
-            print(f"    • {f}")
-    else:
-        print(info("\n  Surveillance arrêtée. Aucun CBZ détecté pendant la session."))
-    input("  [Entrée] ")
+    # FIX e) on démarre le watcher dans un worker et on stocke l'observer
+    # via call_from_thread pour rester thread-safe
+    def start_watcher():
+        observer = watcher.demarrer_watcher(raw_dir, on_new_cbz)
+        app.call_from_thread(setattr, app, "_watcher_observer", observer)
+
+    run_in_worker(start_watcher)
+    changelog.ajouter_entree(SESSION.projet_chemin, SESSION.role_label, "Watchdog démarré")
+    notify_ok(app, f"🟢 Watchdog actif sur {raw_dir}")

@@ -1,33 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "manhwa-tool"
-version = "2.0.0"
-description = "Outil console de gestion de workflow scanlation manhwa"
-requires-python = ">=3.11"
+version = "3.0.0"
+requires-python = ">=3.12"
 dependencies = [
+    "textual>=0.60.0",
     "pyyaml>=6.0",
-    "colorama>=0.4.6",
-    "readchar>=4.0.5",
     "watchdog>=4.0.0",
-    "pillow>=10.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-timeout>=2.3",
+    "Pillow>=10.0.0",
 ]
 
 [project.scripts]
 manhwa-tool = "main:main"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["core", "ui", "commands", "session.py", "config_loader.py", "main.py"]
+
+[tool.hatch.build.targets.sdist]
+include = ["core", "ui", "commands", "*.py"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "textual-dev>=0.60.0",
+]
 
 [tool.pytest.ini_options]
+asyncio_mode = "strict"
 testpaths = ["tests"]
-timeout = 30
-addopts = "-v"
+
+[tool.coverage.run]
+source = ["core"]

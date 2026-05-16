@@ -1,62 +1,34 @@
-"""
-core/cbz_handler.py — Extraction et gestion des archives .cbz/.zip.
-Ne modifie jamais l'archive source (00_Raw/ en lecture seule).
-"""
 import os
 import zipfile
-from ui.progress_bar import ProgressBar
+from core.utils import EXTS_IMAGE
 
-EXTENSIONS_IMAGES = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
-
-
-def list_cbz(raw_path: str) -> list[str]:
-    if not os.path.isdir(raw_path):
+def lister_archives(raw_chemin: str) -> list[str]:
+    if not os.path.exists(raw_chemin):
         return []
-    return sorted([f for f in os.listdir(raw_path) if f.lower().endswith((".cbz", ".zip"))])
+    return sorted(f for f in os.listdir(raw_chemin) if f.lower().endswith((".cbz", ".zip")))
 
-
-def detect_duplicates(archive_name: str, dest_path: str) -> bool:
-    if not os.path.isdir(dest_path):
+def detecter_doublons(archive: str, destination: str) -> bool:
+    if not os.path.exists(destination):
         return False
-    return any(_is_image(f) for f in os.listdir(dest_path))
+    return any(f.lower().endswith(EXTS_IMAGE) for f in os.listdir(destination))
 
+def extraire(archive_chemin: str, destination: str, callback=None) -> int:
+    real_src = os.path.realpath(archive_chemin)
+    if not os.path.exists(real_src):
+        return 0
 
-def extract_cbz(cbz_path: str, dest_path: str, progress_callback=None) -> list[str]:
-    """
-    Extrait vers dest_path. Gère images à la racine ou dans un sous-dossier.
-    Ne modifie jamais cbz_path.
-    """
-    os.makedirs(dest_path, exist_ok=True)
-    extracted = []
+    os.makedirs(destination, exist_ok=True)
+    count = 0
 
-    with zipfile.ZipFile(cbz_path, "r") as zf:
-        members = zf.namelist()
-        image_members = [m for m in members if _is_image(m)]
-        if not image_members:
-            return []
-
-        total = len(image_members)
-        bar = ProgressBar(total, label="Extraction") if progress_callback is None else None
-
-        for i, member in enumerate(image_members):
-            filename = os.path.basename(member)
-            if not filename:
-                continue
-            dest_file = os.path.join(dest_path, filename)
-            with zf.open(member) as src, open(dest_file, "wb") as dst:
-                dst.write(src.read())
-            extracted.append(dest_file)
-
-            if bar:
-                bar.update(i + 1, suffix=filename)
-            elif progress_callback:
-                progress_callback(i + 1, total, filename)
-
-        if bar:
-            bar.done(f"{total} image(s) extraite(s)")
-
-    return extracted
-
-
-def _is_image(filename: str) -> bool:
-    return os.path.splitext(filename.lower())[1] in EXTENSIONS_IMAGES
+    with zipfile.ZipFile(real_src, "r") as zf:
+        images = sorted(n for n in zf.namelist() if n.lower().endswith(EXTS_IMAGE))
+        total = len(images)
+        for member in images:
+            basename = os.path.basename(member)
+            dest_path = os.path.join(destination, basename)
+            with open(dest_path, "wb") as out:
+                out.write(zf.read(member))
+            count += 1
+            if callback:
+                callback(count, total)
+    return count

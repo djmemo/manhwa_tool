@@ -1,41 +1,31 @@
-"""
-core/changelog.py — Gestion append-only du changelog dans .project.yaml.
-Ne supprime jamais l'historique existant.
-"""
 import os
 from datetime import datetime
-import yaml
+from core.utils import lire_yaml, ecrire_yaml
 
+def ajouter_entree(projet_chemin: str, role: str, action: str) -> None:
+    p_file = os.path.join(projet_chemin, ".project.yaml")
+    if not os.path.exists(p_file):
+        return
 
-def add_entry(project_yaml_path: str, role: str, action: str) -> None:
-    """
-    Ajoute une entrée au changelog de .project.yaml.
-    Append-only : ne modifie jamais les entrées existantes.
-    """
-    if not os.path.isfile(project_yaml_path):
-        raise FileNotFoundError(f".project.yaml introuvable : {project_yaml_path}")
-
-    with open(project_yaml_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    if "changelog" not in data:
+    data = lire_yaml(p_file)
+    # setdefault NE remplace PAS une valeur None explicite dans le YAML
+    # → on force toujours une liste propre si la valeur n'est pas une liste
+    if not isinstance(data.get("changelog"), list):
         data["changelog"] = []
-
-    entry = {
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "role": role,
+    data["changelog"].append({
+        "date":   datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "role":   role,
         "action": action,
-    }
-    data["changelog"].append(entry)
+    })
+    ecrire_yaml(p_file, data)
 
-    with open(project_yaml_path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
-
-
-def read_changelog(project_yaml_path: str) -> list[dict]:
-    """Retourne la liste complète des entrées du changelog."""
-    if not os.path.isfile(project_yaml_path):
+def lire_changelog(projet_chemin: str, limit: int = 50) -> list[dict]:
+    p_file = os.path.join(projet_chemin, ".project.yaml")
+    if not os.path.exists(p_file):
         return []
-    with open(project_yaml_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    return data.get("changelog", [])
+
+    data = lire_yaml(p_file)
+    changelog = data.get("changelog")
+    if not isinstance(changelog, list):
+        return []
+    return changelog[-limit:]

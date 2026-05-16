@@ -1,121 +1,69 @@
-"""
-core/role_manager.py — Gestion de .role.yaml.
-Unique point d'entrée pour la configuration des rôles.
-"""
 import os
-from datetime import datetime
-import yaml
+from session import SESSION
+from core.utils import lire_yaml, ecrire_yaml
 
-DEFAULT_SOUS_DOSSIERS = [
-    {"nom": "01_Original_RAW", "index": 0, "description": "Images brutes extraites du CBZ"},
-    {"nom": "02_Upscale_RAW", "index": 1, "description": "Images upscalées par Real-ESRGAN"},
-    {"nom": "03_Clean_PSD", "index": 2, "description": "Fichiers PSD nettoyage manuel"},
-    {"nom": "04_Clean_JPEG", "index": 3, "description": "JPEG après export Photoshop"},
-    {"nom": "05_Final_Merged", "index": 4, "description": "Image(s) fusionnée(s) finale(s)"},
-]
-
-ROLES_DISPONIBLES = [
-    {"dossier": "01_Clean", "label": "Cleaner"},
-    {"dossier": "02_Translation", "label": "Traducteur"},
-    {"dossier": "03_Check", "label": "Correcteur"},
-    {"dossier": "04_Edit", "label": "Éditeur"},
-    {"dossier": "05_Final", "label": "Final"},
-]
-
-
-def _default_role(label: str, dossier: str) -> dict:
-    return {
-        "role": {
-            "label": label,
-            "dossier": dossier,
-            "membres": [],
-        },
+def creer_role(projet_chemin: str, dossier: str, label: str) -> str:
+    role_chemin = os.path.join(projet_chemin, dossier)
+    os.makedirs(role_chemin, exist_ok=True)
+    data = {
+        "role": {"label": label, "dossier": dossier, "membres": []},
         "config": {
-            "model_esrgan": "realesrgan-x4plus-anime",
-            "format_sortie_upscale": "png",
+            "model_esrgan": "realesr-animevideov3", 
             "qscale_global": 95,
-            "qscale_groupe": 92,
-            "extensions_images": ["jpg", "jpeg", "png", "webp"],
+            "qscale_groupe": 90, 
+            "extensions_images": [".jpg", ".jpeg", ".png", ".webp"]
         },
-        "sous_dossiers": DEFAULT_SOUS_DOSSIERS,
+        "sous_dossiers": [
+            {"index": 0, "nom": "01_Original_RAW"}, 
+            {"index": 1, "nom": "02_Upscale_RAW"},
+            {"index": 2, "nom": "02_Clean_PSD"},     
+            {"index": 3, "nom": "03_Clean_JPEG"},
+            {"index": 4, "nom": "04_Final_Merged"},
+        ]
     }
+    ecrire_yaml(os.path.join(role_chemin, ".role.yaml"), data)
+    return role_chemin
 
+def lire_role(role_chemin: str) -> dict:
+    return lire_yaml(os.path.join(role_chemin, ".role.yaml"))
 
-def create_role_yaml(role_path: str, label: str, dossier: str) -> dict:
-    """Crée .role.yaml dans le dossier du rôle actif."""
-    os.makedirs(role_path, exist_ok=True)
-    data = _default_role(label, dossier)
-    path = os.path.join(role_path, ".role.yaml")
-    with open(path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
-    return data
+def sauvegarder_role(role_chemin: str, data: dict) -> None:
+    real_path = os.path.realpath(role_chemin)
+    session_real = os.path.realpath(SESSION.role_dossier) if SESSION.role_dossier else ""
+    if session_real and not real_path.startswith(session_real):
+        raise ValueError(f"Écriture refusée : {role_chemin} est hors du rôle actif.")
+    ecrire_yaml(os.path.join(role_chemin, ".role.yaml"), data)
 
-
-def read_role_yaml(role_path: str) -> dict | None:
-    """Lit .role.yaml (lecture seule pour rôles tiers)."""
-    path = os.path.join(role_path, ".role.yaml")
-    if not os.path.isfile(path):
-        return None
-    try:
-        with open(path, encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
-    except yaml.YAMLError:
-        return None
-
-
-def write_role_yaml(role_path: str, data: dict) -> None:
-    """Écrit .role.yaml (rôle actif uniquement)."""
-    path = os.path.join(role_path, ".role.yaml")
-    with open(path, "w", encoding="utf-8") as f:
-        yaml.dump(data, f, allow_unicode=True, sort_keys=False, default_flow_style=False)
-
-
-def list_roles(project_path: str) -> list[dict]:
-    """Liste les rôles disponibles pour un projet (dossiers avec .role.yaml)."""
+def lister_roles(projet_chemin: str) -> list[dict]:
     roles = []
-    for role_info in ROLES_DISPONIBLES:
-        role_dir = os.path.join(project_path, role_info["dossier"])
-        role_yaml_path = os.path.join(role_dir, ".role.yaml")
-        if os.path.isfile(role_yaml_path):
-            data = read_role_yaml(role_dir) or {}
-            roles.append({
-                "dossier": role_info["dossier"],
-                "label": data.get("role", {}).get("label", role_info["label"]),
-                "path": role_dir,
-            })
+    if not os.path.exists(projet_chemin):
+        return roles
+    for d in os.listdir(projet_chemin):
+        p = os.path.join(projet_chemin, d)
+        if os.path.isdir(p) and os.path.isfile(os.path.join(p, ".role.yaml")):
+            roles.append(lire_role(p).get("role", {}))
     return roles
 
+def sauvegarder_chapitre_actif(role_chemin: str, chapitre: str) -> None:
+    """Persiste le chapitre actif dans .role.yaml."""
+    data = lire_role(role_chemin)
+    if not isinstance(data.get("config"), dict):
+        data["config"] = {}
+    data["config"]["dernier_chapitre_actif"] = chapitre
+    ecrire_yaml(os.path.join(role_chemin, ".role.yaml"), data)
 
-def get_sous_dossiers(role_path: str) -> list[dict]:
-    """Retourne la liste des sous-dossiers configurés pour ce rôle."""
-    data = read_role_yaml(role_path)
-    if data is None:
-        return DEFAULT_SOUS_DOSSIERS
-    return data.get("sous_dossiers", DEFAULT_SOUS_DOSSIERS)
+def init_sous_dossiers(role_chemin: str, chapitre: str) -> None:
+    data = lire_role(role_chemin)
+    chap_chemin = os.path.join(role_chemin, chapitre)
+    os.makedirs(chap_chemin, exist_ok=True)
+    for sd in data.get("sous_dossiers", []):
+        os.makedirs(os.path.join(chap_chemin, sd["nom"]), exist_ok=True)
 
-
-def update_field(role_path: str, section: str, key: str, value) -> None:
-    """Modifie un champ autorisé du rôle actif."""
-    data = read_role_yaml(role_path) or {}
-    if section not in data:
-        data[section] = {}
-    data[section][key] = value
-    write_role_yaml(role_path, data)
-
-
-def add_membre(role_path: str, membre: str) -> None:
-    data = read_role_yaml(role_path) or {}
-    membres = data.get("role", {}).get("membres", [])
-    if membre not in membres:
-        membres.append(membre)
-    data.setdefault("role", {})["membres"] = membres
-    write_role_yaml(role_path, data)
-
-
-def remove_membre(role_path: str, membre: str) -> None:
-    data = read_role_yaml(role_path) or {}
-    membres = data.get("role", {}).get("membres", [])
-    if membre in membres:
-        membres.remove(membre)
-    data.setdefault("role", {})["membres"] = membres
-    write_role_yaml(role_path, data)
+def mettre_a_jour_champ(role_chemin: str, chemin_champ: str, valeur: any) -> None:
+    data = lire_role(role_chemin)
+    keys = chemin_champ.split(".")
+    noeud = data
+    for k in keys[:-1]:
+        noeud = noeud.setdefault(k, {})
+    noeud[keys[-1]] = valeur
+    sauvegarder_role(role_chemin, data)
