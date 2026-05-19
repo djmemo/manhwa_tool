@@ -1,8 +1,10 @@
 import os
 from session import SESSION
-from core.utils import lire_yaml, ecrire_yaml
+from core.utils import lire_yaml, ecrire_yaml, validate_path
 
 def creer_role(projet_chemin: str, dossier: str, label: str) -> str:
+    if not validate_path(projet_chemin):
+        raise ValueError(f"Chemin de projet invalide: {projet_chemin}")
     role_chemin = os.path.join(projet_chemin, dossier)
     os.makedirs(role_chemin, exist_ok=True)
     data = {

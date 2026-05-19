@@ -1,5 +1,6 @@
 import os
 import time
+from core.utils import validate_path
 
 try:
     from watchdog.observers import Observer
@@ -7,6 +8,8 @@ try:
 
     class _CBZHandler(FileSystemEventHandler):
         def __init__(self, raw_chemin: str, callback):
+            if not validate_path(raw_chemin):
+                raise ValueError(f"Chemin de surveillance invalide: {raw_chemin}")
             self._raw_chemin = raw_chemin
             self._callback   = callback
             self._seen: set  = set()
@@ -40,6 +43,8 @@ try:
                 elapsed += interval
 
     def demarrer_watcher(raw_chemin: str, callback) -> Observer:
+        if not validate_path(raw_chemin):
+            raise ValueError(f"Chemin de surveillance invalide: {raw_chemin}")
         handler = _CBZHandler(raw_chemin, callback)
         obs = Observer()
         obs.schedule(handler, raw_chemin, recursive=False)

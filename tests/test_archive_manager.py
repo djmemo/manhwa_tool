@@ -28,6 +28,15 @@ def test_archiver_cree_zip_et_passe_archive(termine_setup, tmp_path):
     zip_path = archive_manager.archiver_chapitre(ch, dest)
     assert os.path.isfile(zip_path)
 
+    # Créer des images dans 04_Final_Merged pour que passer_en_archive fonctionne
+    merged_dir = os.path.join(ch, "04_Final_Merged")
+    os.makedirs(merged_dir, exist_ok=True)
+    for i in range(3):
+        img_path = os.path.join(merged_dir, f"page_{i:03d}.jpg")
+        from PIL import Image
+        img = Image.new("RGB", (100, 200), color=(i * 50, 0, 0))
+        img.save(img_path)
+
     archive_manager.passer_en_archive(ch)
     st = status_manager.lire_status(ch)
     assert st["statut_global"] == "archive"

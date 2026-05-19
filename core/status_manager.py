@@ -1,8 +1,10 @@
 import os
 from datetime import datetime
-from core.utils import lire_yaml, ecrire_yaml
+from core.utils import lire_yaml, ecrire_yaml, validate_path
 
 def creer_status(chapitre_chemin: str, chapter: str, role: str) -> dict:
+    if not validate_path(chapitre_chemin):
+        raise ValueError(f"Chemin de chapitre invalide: {chapitre_chemin}")
     data = {
         "chapter":    chapter,
         "role":       role,
@@ -35,15 +37,27 @@ def marquer_etape(chapitre_chemin: str, nom_etape: str, duree: str) -> None:
         data["etapes"] = {}
         etapes = data["etapes"]
     if nom_etape in etapes:
+        # Ne mettre à jour le statut à "termine" que si cette étape n'était pas déjà marquée
+        # comme terminée, et que toutes les étapes sont maintenant terminées
+        etait_deja_termine = etapes[nom_etape].get("done", False)
         etapes[nom_etape].update({
             "done":  True,
             "date":  datetime.now().isoformat(),
             "duree": duree,
         })
-    data["updated_at"] = datetime.now().isoformat()
-    if est_chapitre_termine(data):
-        data["statut_global"] = "termine"
-    sauvegarder_status(chapitre_chemin, data)
+        data["updated_at"] = datetime.now().isoformat()
+        if not etait_deja_termine and est_chapitre_termine(data):
+            data["statut_global"] = "termine"
+        sauvegarder_status(chapitre_chemin, data)
+    else:
+        # Si l'étape n'existe pas, juste sauvegarder sans changer le statut
+        etapes[nom_etape] = {
+            "done":  True,
+            "date":  datetime.now().isoformat(),
+            "duree": duree,
+        }
+        data["updated_at"] = datetime.now().isoformat()
+        sauvegarder_status(chapitre_chemin, data)
 
 def calculer_progression(status: dict) -> float:
     etapes = status.get("etapes") or {}

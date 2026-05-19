@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from core.utils import lire_yaml, ecrire_yaml
+from core.utils import lire_yaml, ecrire_yaml, validate_path
 
 def scan_projets(racine: str) -> list[dict]:
     projets = []
@@ -13,6 +13,8 @@ def scan_projets(racine: str) -> list[dict]:
     return projets
 
 def creer_projet(racine: str, nom: str) -> str:
+    if not validate_path(racine):
+        raise ValueError(f"Chemin racine invalide: {racine}")
     p_path = os.path.join(racine, nom)
     os.makedirs(os.path.join(p_path, "00_Raw"), exist_ok=True)
     data = {

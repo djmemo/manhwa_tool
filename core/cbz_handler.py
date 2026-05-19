@@ -1,18 +1,28 @@
 import os
 import zipfile
-from core.utils import EXTS_IMAGE
+from core.utils import EXTS_IMAGE, validate_path
 
 def lister_archives(raw_chemin: str) -> list[str]:
+    if not validate_path(raw_chemin):
+        return []
     if not os.path.exists(raw_chemin):
         return []
     return sorted(f for f in os.listdir(raw_chemin) if f.lower().endswith((".cbz", ".zip")))
 
 def detecter_doublons(archive: str, destination: str) -> bool:
+    if not validate_path(archive):
+        return False
+    if not validate_path(destination):
+        return False
     if not os.path.exists(destination):
         return False
     return any(f.lower().endswith(EXTS_IMAGE) for f in os.listdir(destination))
 
 def extraire(archive_chemin: str, destination: str, callback=None) -> int:
+    if not validate_path(archive_chemin):
+        return 0
+    if not validate_path(destination):
+        return 0
     real_src = os.path.realpath(archive_chemin)
     if not os.path.exists(real_src):
         return 0

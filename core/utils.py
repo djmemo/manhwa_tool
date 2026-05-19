@@ -9,12 +9,16 @@ EXTS_IMAGE = (".jpg", ".jpeg", ".png", ".webp")
 def lire_yaml(chemin_fichier: str, defaut: Any = None) -> Any:
     """Lit un fichier YAML en toute sécurité et retourne son contenu."""
     if not os.path.isfile(chemin_fichier):
-        return defaut if defaut is not None else {}
+        if defaut is not None:
+            return defaut
+        raise FileNotFoundError(f"Fichier YAML introuvable: {chemin_fichier}")
     try:
         with open(chemin_fichier, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or (defaut if defaut is not None else {})
-    except yaml.YAMLError:
-        return defaut if defaut is not None else {}
+    except yaml.YAMLError as e:
+        if defaut is not None:
+            return defaut
+        raise ValueError(f"Erreur de parsing YAML: {e}")
 
 def ecrire_yaml(chemin_fichier: str, data: Any) -> None:
     """Écrit des données dans un fichier YAML proprement formaté."""
@@ -65,3 +69,23 @@ def normaliser_nom_chapitre(archive_name: str) -> str:
         return f"Chapter {int(match.group(1)):03d}"
     # Fallback : nom brut nettoyé du hash
     return _re.sub(r'_[0-9a-f]{6,8}$', '', sans_ext).strip()
+
+def validate_path(path: str) -> bool:
+    """
+    Valide qu'un chemin est valide et accessible.
+    Retourne True si le chemin est valide (existe ou peut être créé), False sinon.
+    """
+    if not path or not isinstance(path, str):
+        return False
+    try:
+        # Si le chemin existe, il est valide
+        if os.path.exists(path):
+            return True
+        # Si le chemin n'existe pas, vérifier que les parents existent
+        # et que le chemin est accessible
+        parent = os.path.dirname(path)
+        if parent and not os.path.exists(parent):
+            return False
+        return True
+    except (OSError, PermissionError):
+        return False
