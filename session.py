@@ -8,7 +8,7 @@ class _Session:
         self.chapitre_actif: str = ""
     def reset(self): self.__init__()
     def breadcrumb(self) -> str:
-        parts = ["OsirisScan"]
+        parts = ["ScanTrad"]
         if self.projet_nom: parts.append(self.projet_nom)
         if self.role_label: parts.append(self.role_label)
         if self.chapitre_actif: parts.append(self.chapitre_actif)

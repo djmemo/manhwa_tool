@@ -4,7 +4,7 @@ from PIL import Image
 
 @pytest.fixture
 def tmp_project(tmp_path):
-    racine = tmp_path / "OsirisScan"
+    racine = tmp_path / "ScanTrad"
     racine.mkdir()
     projet = racine / "TestProject"
     projet.mkdir()

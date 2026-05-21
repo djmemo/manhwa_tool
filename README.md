@@ -37,7 +37,7 @@ archivé — **sans base de données** : tout l'état est stocké dans des fichi
 ## 🗂 Structure de l'espace de travail
 
 ```
-D:/OsirisScan/                          ← racine définie dans config.yaml
+D:/ScanTrad/                          ← racine définie dans config.yaml
 └── MonProjet/                          ← une œuvre
     ├── .project.yaml                   ← profil global, stats, changelog
     ├── 00_Raw/                         ← archives brutes (LECTURE SEULE)
@@ -90,7 +90,7 @@ run.bat                  # Windows
 
 ```yaml
 machine:
-  racine_osirisscan: D:/ScanTrad
+  racine_ScanTrad: D:/ScanTrad
 
 upscale:
   exe_path: C:/Tools/realesrgan/realesrgan-ncnn-vulkan.exe
@@ -215,7 +215,7 @@ manhwa_tool/
 │   │   ├── screen_progression.py
 │   │   └── ...
 │   └── widgets/
-│       ├── breadcrumb.py       ← Fil d'Ariane (OsirisScan > Projet > Rôle > Chapitre)
+│       ├── breadcrumb.py       ← Fil d'Ariane (ScanTrad > Projet > Rôle > Chapitre)
 │       ├── progressbar.py
 │       └── status_table.py
 │

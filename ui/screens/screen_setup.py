@@ -24,9 +24,9 @@ class SetupScreen(Screen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="dialog"):
-            yield Label("⚙️  Configuration initiale — OsirisScan", id="lbl_title")
+            yield Label("⚙️  Configuration initiale — ScanTrad", id="lbl_title")
             yield Label(
-                "Indiquez le dossier racine de votre espace de travail OsirisScan.\n"
+                "Indiquez le dossier racine de votre espace de travail ScanTrad.\n"
                 "Tous vos projets (oeuvres) seront stockés dans ce dossier.",
                 id="lbl_hint"
             )
