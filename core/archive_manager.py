@@ -29,37 +29,39 @@ def passer_en_archive(chapitre_chemin: str) -> None:
 
     if not os.path.exists(chapitre_chemin):
         return
+
     # Vérifier que le statut actuel est "termine" avant de passer en archive
     status = lire_status(chapitre_chemin)
-    if status.get("statut_global") == "termine":
-        # Vérifier que le dossier contient des images avant de passer en archive
-        images = lister_images(chapitre_chemin)
-        if images:
-            passer_a_statut(chapitre_chemin, "archive")
-            return
-        else:
-            # Si pas d'images dans le dossier principal, vérifier dans 05_Final_Merged
-            merged_dir = os.path.join(chapitre_chemin, "05_Final_Merged")
-            if os.path.exists(merged_dir):
-                images = lister_images(merged_dir)
-                if images:
-                    passer_a_statut(chapitre_chemin, "archive")
-                    return
-                else:
-                    # Si pas d'images dans 05_Final_Merged, vérifier dans les sous-dossiers
-                    for root, dirs, files in os.walk(chapitre_chemin):
-                        for f in files:
-                            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                                passer_a_statut(chapitre_chemin, "archive")
-                                return
-                    print(f"Chapitre {chapitre_chemin} n'a pas d'images, impossible de passer en archive")
-            else:
-                # Si pas de 05_Final_Merged, vérifier dans les sous-dossiers
-                for root, dirs, files in os.walk(chapitre_chemin):
-                    for f in files:
-                        if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                            passer_a_statut(chapitre_chemin, "archive")
-                            return
-                print(f"Chapitre {chapitre_chemin} n'a pas d'images, impossible de passer en archive")
-    else:
+    if status.get("statut_global") != "termine":
         print(f"Chapitre {chapitre_chemin} n'est pas en statut 'termine', statut actuel: {status.get('statut_global')}")
+        return
+
+    # Vérifier la présence d'images dans différents emplacements
+    if a_des_images(chapitre_chemin):
+        passer_a_statut(chapitre_chemin, "archive")
+    else:
+        print(f"Chapitre {chapitre_chemin} n'a pas d'images, impossible de passer en archive")
+
+def a_des_images(dossier: str) -> bool:
+    """Vérifie si un dossier ou ses sous-dossiers contiennent des images."""
+    from core.utils import lister_images
+
+    # Vérifier d'abord dans le dossier principal
+    images = lister_images(dossier)
+    if images:
+        return True
+
+    # Vérifier dans 05_Final_Merged
+    merged_dir = os.path.join(dossier, "05_Final_Merged")
+    if os.path.exists(merged_dir):
+        images = lister_images(merged_dir)
+        if images:
+            return True
+
+    # Vérifier récursivement dans tous les sous-dossiers
+    for root, dirs, files in os.walk(dossier):
+        for f in files:
+            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                return True
+
+    return False
