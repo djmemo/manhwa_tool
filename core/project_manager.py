@@ -55,16 +55,34 @@ def recalculer_stats(projet_chemin: str) -> dict:
     data = lire_projet(projet_chemin)
     termine = en_cours = non_commence = 0
 
-    for dirpath, _, files in os.walk(projet_chemin):
-        if ".status.yaml" in files:
-            st = lire_yaml(os.path.join(dirpath, ".status.yaml"))
-            sg = st.get("statut_global", "")
-            if sg == "termine":
-                termine += 1
-            elif sg == "en_cours":
-                en_cours += 1
-            else:
-                non_commence += 1
+    try:
+        for dirpath, _, files in os.walk(projet_chemin):
+            if ".status.yaml" in files:
+                try:
+                    st = lire_yaml(os.path.join(dirpath, ".status.yaml"))
+                    sg = st.get("statut_global", "")
+                    if sg == "termine":
+                        termine += 1
+                    elif sg == "en_cours":
+                        en_cours += 1
+                    else:
+                        non_commence += 1
+                except (FileNotFoundError, ValueError, TypeError) as e:
+                    # Ignorer les fichiers YAML corrompus ou illisibles
+                    continue
+
+    except (OSError, PermissionError) as e:
+        # Gérer les erreurs d'accès aux fichiers
+        print(f"Erreur lors du calcul des stats: {e}")
+        # Utiliser les stats existantes si disponibles
+        if isinstance(data.get("stats"), dict):
+            return data["stats"]
+        return {
+            "chapitres_termines": 0,
+            "chapitres_en_cours": 0,
+            "chapitres_non_commences": 0,
+            "derniere_activite": datetime.now().strftime("%Y-%m-%d"),
+        }
 
     # Guard : stats peut valoir None si le YAML a été corrompu
     if not isinstance(data.get("stats"), dict):
