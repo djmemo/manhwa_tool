@@ -6,6 +6,9 @@ from textual.containers import Horizontal
 from ui.widgets.breadcrumb import Breadcrumb
 from core import project_manager
 from session import SESSION
+from ui.screens.screen_select_role import SelectRoleScreen
+from ui.screens.screen_setup import SetupScreen
+from ui.screens.screen_new_project import NewProjectScreen
 
 class SelectProjectScreen(Screen):
     def compose(self) -> ComposeResult:
@@ -36,10 +39,8 @@ class SelectProjectScreen(Screen):
         if event.button.id == "btn_quit":
             self.app.exit()
         elif event.button.id == "btn_setup":
-            from ui.screens.screen_setup import SetupScreen
             self.app.push_screen(SetupScreen(), callback=lambda _: self._charger_projets())
         elif event.button.id == "btn_new":
-            from ui.screens.screen_new_project import NewProjectScreen
             self.app.push_screen(NewProjectScreen(), callback=lambda _: self._charger_projets())
 
     def on_list_view_selected(self, event: ListView.Selected):
@@ -48,5 +49,4 @@ class SelectProjectScreen(Screen):
             return
         SESSION.projet_nom = nom
         SESSION.projet_chemin = os.path.join(SESSION.racine_scantrad, nom)
-        from ui.screens.screen_select_role import SelectRoleScreen
         self.app.push_screen(SelectRoleScreen())

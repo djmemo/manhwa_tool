@@ -49,9 +49,9 @@ D:/ScanTrad/                          ← racine définie dans config.yaml
     │       ├── .status.yaml            ← suivi granulaire des étapes
     │       ├── 01_Original_RAW/        ← images extraites du CBZ
     │       ├── 02_Upscale_RAW/         ← images upscalées Real-ESRGAN
-    │       ├── 02_Clean_PSD/           ← cleaning Photoshop (étape manuelle)
-    │       ├── 03_Clean_JPEG/          ← exports JPEG du cleaning
-    │       └── 04_Final_Merged/        ← fusion finale / release
+    │       ├── 03_Clean_PSD/           ← cleaning Photoshop (étape manuelle)
+    │       ├── 04_Clean_JPEG/          ← exports JPEG du cleaning
+    │       └── 05_Final_Merged/        ← fusion finale / release
     ├── 02_Trad/                        ← rôle Traduction
     └── 03_Check/                       ← rôle Check
 ```
@@ -131,11 +131,11 @@ SelectProjectScreen
 │                                                              │
 │  3. cmd_004  Upscale Real-ESRGAN → 02_Upscale_RAW/           │
 │                                                              │
-│  4. [Manuel] Nettoyage Photoshop → 02_Clean_PSD/             │
-│              Export JPEG → 03_Clean_JPEG/                    │
+│  4. [Manuel] Nettoyage Photoshop → 03_Clean_PSD/             │
+│              Export JPEG → 04_Clean_JPEG/                    │
 │                                                              │
-│  5. cmd_002  Fusion globale → 04_Final_Merged/               │
-│     cmd_003  Recomposition pages découpées → 04_Final_Merged │
+│  5. cmd_002  Fusion globale → 05_Final_Merged/               │
+│     cmd_003  Recomposition pages découpées → 05_Final_Merged │
 │     cmd_011  Slicer webtoon + CBZ release                    │
 └──────────────────────────────────────────────────────────────┘
 
@@ -152,13 +152,13 @@ Relancez `cmd_010` pour arrêter le watcher.
 Si vos images ont été découpées en parties avec la convention `__` :
 
 ```
-03_Clean_JPEG/
+04_Clean_JPEG/
   001__001.jpg   ┐
-  001__002.jpg   ├─→ cmd_003 → 04_Final_Merged/001.png
+  001__002.jpg   ├─→ cmd_003 → 05_Final_Merged/001.png
   001__003.jpg   ┘
   002__001.jpg   ┐
-  002__002.jpg   ├─→ cmd_003 → 04_Final_Merged/002.png
-  003.jpg        ──→ cmd_003 → 04_Final_Merged/003.png  (copiée telle quelle)
+  002__002.jpg   ├─→ cmd_003 → 05_Final_Merged/002.png
+  003.jpg        ──→ cmd_003 → 05_Final_Merged/003.png  (copiée telle quelle)
 ```
 
 ---
@@ -169,8 +169,8 @@ Si vos images ont été découpées en parties avec la convention `__` :
 |---|---|---|
 | `cmd_000_selectionner_chapitre` | Sélectionner un chapitre | Reprend ou commence un chapitre existant dans le rôle actif |
 | `cmd_001_creer_chapitre` | Créer un chapitre | Initialise un nouveau chapitre et son arborescence |
-| `cmd_002_fusion_globale` | Fusion globale | Fusionne toutes les images de 03_Clean_JPEG en un seul PNG sans limite de hauteur |
-| `cmd_003_fusion_par_groupe` | Recomposition pages découpées | Fusionne les parties __001/__002/... en pages complètes dans 04_Final_Merged |
+| `cmd_002_fusion_globale` | Fusion globale | Fusionne toutes les images de 04_Clean_JPEG en un seul PNG sans limite de hauteur |
+| `cmd_003_fusion_par_groupe` | Recomposition pages découpées | Fusionne les parties __001/__002/... en pages complètes dans 05_Final_Merged |
 | `cmd_004_upscale_realesrgan` | Upscale Real-ESRGAN | Améliore la résolution des images RAW via Real-ESRGAN (01_Original_RAW → 02_Upscale_RAW) |
 | `cmd_005_extraction_cbz` | Extraction CBZ | Extrait une archive CBZ/ZIP vers 01_Original_RAW du chapitre actif |
 | `cmd_006_pipeline_complet` | Pipeline Complet | Exécute le workflow entier du chapitre actif étape par étape |

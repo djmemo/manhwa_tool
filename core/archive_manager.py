@@ -13,7 +13,7 @@ def archiver_chapitre(chapitre_chemin: str, destination: str) -> str:
     os.makedirs(destination, exist_ok=True)
     nom_zip = f"archive_{os.path.basename(chapitre_chemin)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
     zip_path = os.path.join(destination, nom_zip)
-    merged_dir = os.path.join(chapitre_chemin, "04_Final_Merged")
+    merged_dir = os.path.join(chapitre_chemin, "05_Final_Merged")
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         if os.path.exists(merged_dir):
             for f in os.listdir(merged_dir):
@@ -38,15 +38,15 @@ def passer_en_archive(chapitre_chemin: str) -> None:
             passer_a_statut(chapitre_chemin, "archive")
             return
         else:
-            # Si pas d'images dans le dossier principal, vérifier dans 04_Final_Merged
-            merged_dir = os.path.join(chapitre_chemin, "04_Final_Merged")
+            # Si pas d'images dans le dossier principal, vérifier dans 05_Final_Merged
+            merged_dir = os.path.join(chapitre_chemin, "05_Final_Merged")
             if os.path.exists(merged_dir):
                 images = lister_images(merged_dir)
                 if images:
                     passer_a_statut(chapitre_chemin, "archive")
                     return
                 else:
-                    # Si pas d'images dans 04_Final_Merged, vérifier dans les sous-dossiers
+                    # Si pas d'images dans 05_Final_Merged, vérifier dans les sous-dossiers
                     for root, dirs, files in os.walk(chapitre_chemin):
                         for f in files:
                             if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
@@ -54,7 +54,7 @@ def passer_en_archive(chapitre_chemin: str) -> None:
                                 return
                     print(f"Chapitre {chapitre_chemin} n'a pas d'images, impossible de passer en archive")
             else:
-                # Si pas de 04_Final_Merged, vérifier dans les sous-dossiers
+                # Si pas de 05_Final_Merged, vérifier dans les sous-dossiers
                 for root, dirs, files in os.walk(chapitre_chemin):
                     for f in files:
                         if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):

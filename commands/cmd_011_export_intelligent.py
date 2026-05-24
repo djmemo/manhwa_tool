@@ -1,10 +1,10 @@
 """
 cmd_011 — Export intelligent (Slicer webtoon)
 ----------------------------------------------
-Fusionne les images de 03_Clean_JPEG puis découpe intelligemment
+Fusionne les images de 04_Clean_JPEG puis découpe intelligemment
 le résultat en tranches webtoon (hauteur max configurable).
 La coupe cherche une gouttière blanche pour éviter de trancher du dessin.
-Génère dans 04_Final_Merged :
+Génère dans 05_Final_Merged :
   - Webtoon_Slices_PNG/  (optionnel)
   - Webtoon_Slices_JPEG/ (optionnel)
   - NomChapitre_Release.cbz
@@ -68,6 +68,14 @@ class SlicerConfigModal(ModalScreen):
                     id="inp_height",
                     placeholder="8000",
                 )
+            yield Label("Largeur max (px, 0 = originale) :")
+            with Horizontal(classes="row_champ"):
+                yield Label("slicer_max_width :", classes="lbl_champ")
+                yield Input(
+                    value=str(d.get("slicer_max_width", 800)),
+                    id="inp_width",
+                    placeholder="0 = pas de limite",
+                )
             yield Label("Formats generes :")
             yield Checkbox(
                 "PNG   (lossless)",
@@ -107,7 +115,15 @@ class SlicerConfigModal(ModalScreen):
         if not png and not jpeg and not cbz:
             lbl.update("Selectionnez au moins un format.")
             return
-        self.dismiss({"max_height": height, "png": png, "jpeg": jpeg, "cbz": cbz})
+        try:
+            width = int(self.query_one("#inp_width", Input).value.strip())
+            if width < 0 or width > 10000:
+                raise ValueError
+        except ValueError:
+            lbl.update("Largeur invalide (0-10000 px, 0 = originale).")
+            return
+
+        self.dismiss({"max_height": height, "max_width": width, "png": png, "jpeg": jpeg, "cbz": cbz})
 
 
 def run(app=None) -> None:
@@ -123,8 +139,8 @@ def run(app=None) -> None:
     from PIL import Image
 
     ch_chemin = os.path.join(SESSION.role_dossier, SESSION.chapitre_actif)
-    src_dir = os.path.join(ch_chemin, "03_Clean_JPEG")
-    dst_dir = os.path.join(ch_chemin, "04_Final_Merged")
+    src_dir = os.path.join(ch_chemin, "04_Clean_JPEG")
+    dst_dir = os.path.join(ch_chemin, "05_Final_Merged")
 
     if not os.path.isdir(src_dir) or not os.listdir(src_dir):
         notify_err(app, f"Aucune image dans {src_dir}")
@@ -135,6 +151,7 @@ def run(app=None) -> None:
     cfg = role_data.get("config", {})
     defaults = {
         "slicer_max_height": cfg.get("slicer_max_height", 8000),
+        "slicer_max_width": cfg.get("slicer_max_width", 800),
         "slicer_export_png": cfg.get("slicer_export_png", False),
         "slicer_export_jpeg": cfg.get("slicer_export_jpeg", False),
         "slicer_export_cbz": cfg.get("slicer_export_cbz", True),
@@ -153,7 +170,7 @@ def run(app=None) -> None:
         images = lister_images(src_dir)
 
         if not images:
-            notify_err(app, "Aucune image trouvee dans 03_Clean_JPEG")
+            notify_err(app, "Aucune image trouvee dans 04_Clean_JPEG")
             return
 
         conflits = [
@@ -197,6 +214,18 @@ def run(app=None) -> None:
                     app.call_from_thread(
                         progression_screen.set_info, "Decoupe en tranches..."
                     )
+
+                    max_width = config.get("max_width", 0)
+                    LANCZOS = getattr(Image, "Resampling", Image).LANCZOS
+                    if max_width and max_width < canvas.width:
+                        ratio  = max_width / canvas.width
+                        new_h  = int(canvas.height * ratio)
+                        canvas = canvas.resize((max_width, new_h), LANCZOS)
+                        app.call_from_thread(
+                            progression_screen.set_info,
+                            f"Redimensionnement → {max_width}px de large...",
+                        )
+
                     slices_list, _ = slicer.slice_image(canvas, max_height)
                     canvas.close()
 
@@ -258,7 +287,7 @@ def run(app=None) -> None:
 
         if conflits:
             msg = (
-                f"{len(conflits)} fichier(s) existent deja dans 04_Final_Merged :\n"
+                f"{len(conflits)} fichier(s) existent deja dans 05_Final_Merged :\n"
                 + ", ".join(conflits[:5])
                 + ("..." if len(conflits) > 5 else "")
                 + "\n\nEcraser ?"

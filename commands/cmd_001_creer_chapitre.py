@@ -3,7 +3,7 @@ cmd_001 — Création d'un nouveau chapitre
 -----------------------------------------
 Propose le prochain numéro de chapitre (ex: Chapter 085).
 Crée l'arborescence complète (01_Original_RAW, 02_Upscale_RAW,
-02_Clean_PSD, 03_Clean_JPEG, 04_Final_Merged), initialise le
+03_Clean_PSD, 04_Clean_JPEG, 05_Final_Merged), initialise le
 .status.yaml et met à jour les stats du projet.
 """
 import os

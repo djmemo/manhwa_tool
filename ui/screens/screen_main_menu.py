@@ -32,9 +32,6 @@ class MainMenuScreen(Screen):
         self._auto_selectionner_chapitre()
 
     def _auto_selectionner_chapitre(self) -> None:
-        from session import SESSION
-        import os
-
         # 1. Déjà défini (ex: juste après extraction) → rien à faire
         if SESSION.chapitre_actif:
             return

@@ -153,7 +153,7 @@ def run(app=None) -> None:
         # ── Étape 3 : Nettoyage PSD (manuel) ─────────────────
         if not est_fait("nettoyage_psd"):
             maj("nettoyage_psd", "manuel")
-            dossier_psd = os.path.join(ch_chemin, "02_Upscale_RAW")
+            dossier_psd = os.path.join(ch_chemin, "03_Clean_PSD")
 
             import threading
             event_manuel = threading.Event()
@@ -203,7 +203,7 @@ def run(app=None) -> None:
         # ── Étape 4 : Export JPEG (manuel) ───────────────────
         if not est_fait("export_jpeg"):
             maj("export_jpeg", "manuel")
-            dossier_jpeg = os.path.join(ch_chemin, "03_Clean_JPEG")
+            dossier_jpeg = os.path.join(ch_chemin, "04_Clean_JPEG")
             os.makedirs(dossier_jpeg, exist_ok=True)
 
             import threading
@@ -259,12 +259,12 @@ def run(app=None) -> None:
                 from core import slicer, exporter
                 from core.utils import lister_images
 
-                src_dir = os.path.join(ch_chemin, "03_Clean_JPEG")
-                dst_dir = os.path.join(ch_chemin, "04_Final_Merged")
+                src_dir = os.path.join(ch_chemin, "04_Clean_JPEG")
+                dst_dir = os.path.join(ch_chemin, "05_Final_Merged")
                 images  = lister_images(src_dir)
 
                 if not images:
-                    maj("export_slicer", "erreur", "Aucune image dans 03_Clean_JPEG")
+                    maj("export_slicer", "erreur", "Aucune image dans 04_Clean_JPEG")
                     app.call_from_thread(pipeline_screen.terminer, "❌ Pipeline interrompu")
                     return
 

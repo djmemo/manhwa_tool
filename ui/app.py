@@ -1,8 +1,11 @@
+import os
 from textual.app import App
-from ui.app_css import APP_CSS
 from config_loader import CFG
 from session import SESSION
-import os
+from ui.app_css import APP_CSS
+from ui.screens.screen_select_project import SelectProjectScreen
+from ui.screens.screen_setup import SetupScreen
+from core.watcher import arreter_watcher
 
 class ManhwaApp(App):
     CSS = APP_CSS
@@ -13,13 +16,10 @@ class ManhwaApp(App):
         racine = CFG.racine_scantrad
         if racine and os.path.isdir(racine):
             SESSION.racine_scantrad = racine
-            from ui.screens.screen_select_project import SelectProjectScreen
             self.push_screen(SelectProjectScreen())
         else:
-            from ui.screens.screen_setup import SetupScreen
             self.push_screen(SetupScreen())
 
     def on_unmount(self):
         if self._watcher_observer:
-            from core.watcher import arreter_watcher
             arreter_watcher(self._watcher_observer)

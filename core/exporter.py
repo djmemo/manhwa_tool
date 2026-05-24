@@ -9,7 +9,7 @@ def exporter_multi_cibles(
     png: bool = True, 
     jpeg: bool = True, 
     cbz: bool = True,
-    jpeg_quality: int = 95
+    jpeg_quality: int = 100
 ) -> dict:
 
     os.makedirs(dest_dir, exist_ok=True)
@@ -23,7 +23,8 @@ def exporter_multi_cibles(
 
     # 1. Sauvegarde des images
     for i, img in enumerate(slices):
-        filename = f"{chapter_name}_slice_{i+1:03d}"
+        # filename = f"{chapter_name}_slice_{i+1:03d}"
+        filename = f"{i+1:03d}"
         if png:
             p = os.path.join(png_dir, f"{filename}.png")
             img.save(p, "PNG")

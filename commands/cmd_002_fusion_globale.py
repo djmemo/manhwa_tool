@@ -1,8 +1,8 @@
 """
 cmd_002 — Fusion globale
 -------------------------
-Prend toutes les images de 03_Clean_JPEG et les empile verticalement
-dans 04_Final_Merged/merged_output.png.
+Prend toutes les images de 04_Clean_JPEG et les empile verticalement
+dans 05_Final_Merged/merged_output.png.
 Le format PNG est utilisé car il n'a pas de limite de hauteur (contrairement au JPEG).
 """
 import os
@@ -10,7 +10,7 @@ from datetime import datetime
 from PIL import Image
 
 LABEL       = "Fusion globale"
-DESCRIPTION = "Fusionne toutes les images de 03_Clean_JPEG en un seul PNG sans limite de hauteur"
+DESCRIPTION = "Fusionne toutes les images de 04_Clean_JPEG en un seul PNG sans limite de hauteur"
 
 
 def _dimensions(images_paths: list[str]) -> tuple[int, int]:
@@ -68,8 +68,8 @@ def run(app=None) -> None:
     from ui.notify import notify_err, notify_ok
 
     ch_chemin = os.path.join(SESSION.role_dossier, SESSION.chapitre_actif)
-    src_dir   = os.path.join(ch_chemin, "03_Clean_JPEG")
-    out_dir   = os.path.join(ch_chemin, "04_Final_Merged")
+    src_dir   = os.path.join(ch_chemin, "04_Clean_JPEG")
+    out_dir   = os.path.join(ch_chemin, "05_Final_Merged")
 
     os.makedirs(out_dir, exist_ok=True)
     images = lister_images(src_dir)

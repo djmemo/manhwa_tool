@@ -18,9 +18,9 @@ def creer_role(projet_chemin: str, dossier: str, label: str) -> str:
         "sous_dossiers": [
             {"index": 0, "nom": "01_Original_RAW"}, 
             {"index": 1, "nom": "02_Upscale_RAW"},
-            {"index": 2, "nom": "02_Clean_PSD"},     
-            {"index": 3, "nom": "03_Clean_JPEG"},
-            {"index": 4, "nom": "04_Final_Merged"},
+            {"index": 2, "nom": "03_Clean_PSD"},     
+            {"index": 3, "nom": "04_Clean_JPEG"},
+            {"index": 4, "nom": "05_Final_Merged"},
         ]
     }
     ecrire_yaml(os.path.join(role_chemin, ".role.yaml"), data)

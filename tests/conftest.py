@@ -35,14 +35,14 @@ def tmp_cbz(tmp_path):
 @pytest.fixture
 def tmp_clean_jpeg(tmp_path):
     """
-    Crée un dossier 03_Clean_JPEG avec :
+    Crée un dossier 04_Clean_JPEG avec :
       - 001__001.jpg, 001__002.jpg, 001__003.jpg  (page 001 en 3 parties)
       - 002__001.jpg, 002__002.jpg               (page 002 en 2 parties)
       - 003.jpg                                  (page simple, sans découpe)
     Retourne le chemin du dossier src et le dossier dst vide.
     """
-    src = tmp_path / "03_Clean_JPEG"
-    dst = tmp_path / "04_Final_Merged"
+    src = tmp_path / "04_Clean_JPEG"
+    dst = tmp_path / "05_Final_Merged"
     src.mkdir()
     dst.mkdir()
 

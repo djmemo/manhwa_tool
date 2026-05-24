@@ -2,7 +2,7 @@
 cmd_003 — Recomposition de pages découpées
 -------------------------------------------
 Logique :
-  Les images de 03_Clean_JPEG sont nommées avec la convention :
+  Les images de 04_Clean_JPEG sont nommées avec la convention :
       <page>__<partie>.jpg   ex: 001__001.jpg, 001__002.jpg, 001__003.jpg
 
   Cette commande fusionne verticalement toutes les parties d'une même page
@@ -10,7 +10,7 @@ Logique :
       001__001.jpg + 001__002.jpg + 001__003.jpg  →  001.jpg
 
   Les images sans séparateur __ sont copiées telles quelles.
-  Destination : 04_Final_Merged/
+  Destination : 05_Final_Merged/
   Format       : choix utilisateur via modale (JPEG / PNG)
   Conflits     : DangerModal si des fichiers existent déjà en destination
 """
@@ -28,7 +28,7 @@ from textual.widgets import Label, Button, Checkbox
 from textual.containers import Vertical, Horizontal
 
 LABEL       = "Recomposition pages découpées"
-DESCRIPTION = "Fusionne les parties __001/__002/... en pages complètes dans 04_Final_Merged"
+DESCRIPTION = "Fusionne les parties __001/__002/... en pages complètes dans 05_Final_Merged"
 
 SEPARATEUR = "__"
 
@@ -217,8 +217,8 @@ def run(app=None) -> None:
     from datetime import datetime
 
     ch_chemin = os.path.join(SESSION.role_dossier, SESSION.chapitre_actif)
-    src_dir   = os.path.join(ch_chemin, "03_Clean_JPEG")
-    dst_dir   = os.path.join(ch_chemin, "04_Final_Merged")
+    src_dir   = os.path.join(ch_chemin, "04_Clean_JPEG")
+    dst_dir   = os.path.join(ch_chemin, "05_Final_Merged")
 
     if not os.path.isdir(src_dir) or not os.listdir(src_dir):
         notify_err(app, f"Aucune image dans {src_dir}")
@@ -227,7 +227,7 @@ def run(app=None) -> None:
     groupes, simples = grouper_images(src_dir)
 
     if not groupes and not simples:
-        notify_err(app, "Aucune image compatible trouvée dans 03_Clean_JPEG")
+        notify_err(app, "Aucune image compatible trouvée dans 04_Clean_JPEG")
         return
 
     def lancer_avec_config(cfg: dict | None) -> None:
@@ -290,7 +290,7 @@ def run(app=None) -> None:
         if conflits:
             msg = (
                 f"⚠️ {len(conflits)} fichier(s) existent déjà dans "
-                f"04_Final_Merged :\n"
+                f"05_Final_Merged :\n"
                 + ", ".join(conflits[:5])
                 + ("..." if len(conflits) > 5 else "")
                 + "\n\nÉcraser ?"
