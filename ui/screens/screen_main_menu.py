@@ -61,14 +61,16 @@ class MainMenuScreen(Screen):
         lv = self.query_one("#lv_commands", ListView)
         lv.clear()                          # ← vider avant de remplir
         self.commands = load_commands()
+        self.command_items = {}
         for cmd in self.commands:
-            item = ListItem(Label(f"[{cmd.LABEL}] - {cmd.DESCRIPTION}"))
-            item.cmd_module = cmd
+            item = ListItem(Label(f"[{cmd.LABEL}] - {cmd.DESCRIPTION}", markup=False))
+            self.command_items[item] = cmd
             lv.append(item)
 
     def on_list_view_selected(self, event: ListView.Selected):
-        if hasattr(event.item, "cmd_module"):
-            event.item.cmd_module.run(app=self.app)
+        cmd = self.command_items.get(event.item)
+        if cmd:
+            cmd.run(app=self.app)
 
     def action_back(self):    self.app.pop_screen()
     def action_quit(self):    self.app.exit()
