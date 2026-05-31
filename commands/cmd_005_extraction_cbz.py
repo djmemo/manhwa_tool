@@ -89,6 +89,11 @@ def run(app=None):
                     f"{nom_chapitre} — {count} images extraites depuis {archive_name} en {duree}"
                 )
                 SESSION.chapitre_actif = nom_chapitre
+                # Persister le chapitre actif dans .role.yaml
+                try:
+                    role_manager.sauvegarder_chapitre_actif(SESSION.role_dossier, nom_chapitre)
+                except Exception:
+                    pass
 
                 def on_success():
                     progression_screen.dismiss()

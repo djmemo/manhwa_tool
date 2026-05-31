@@ -83,6 +83,7 @@ def run(app=None) -> None:
 
     from session import SESSION
     from ui.notify import notify_warn, notify_ok
+    from core import role_manager
 
     chapitres = _lister_chapitres(SESSION.role_dossier)
 
@@ -94,6 +95,11 @@ def run(app=None) -> None:
         if not nom:
             return
         SESSION.chapitre_actif = nom
+        # Persister le chapitre actif dans .role.yaml
+        try:
+            role_manager.sauvegarder_chapitre_actif(SESSION.role_dossier, nom)
+        except Exception:
+            pass
         # Rafraîchir le fil d'Ariane sur tous les écrans empilés
         for screen in app.screen_stack:
             try:

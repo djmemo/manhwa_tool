@@ -66,6 +66,11 @@ def run(app=None) -> None:
             changelog.ajouter_entree(SESSION.projet_chemin, SESSION.role_label, f"{chapitre} — chapitre créé")
 
             SESSION.chapitre_actif = chapitre
+            # Persister le chapitre actif dans .role.yaml
+            try:
+                role_manager.sauvegarder_chapitre_actif(SESSION.role_dossier, chapitre)
+            except Exception:
+                pass
             # Rafraîchir le fil d'Ariane sur tous les écrans empilés
             for screen in app.screen_stack:
                 try:
