@@ -31,33 +31,36 @@ def sauvegarder_status(chapitre_chemin: str, data: dict) -> None:
     ecrire_yaml(os.path.join(chapitre_chemin, ".status.yaml"), data)
 
 def marquer_etape(chapitre_chemin: str, nom_etape: str, duree: str) -> None:
-    data = lire_status(chapitre_chemin)
+    try:
+        data = lire_status(chapitre_chemin)
+    except (FileNotFoundError, ValueError, TypeError) as e:
+        print(f"Erreur lors de la lecture du statut: {e}")
+        return
+
+    # Vérifier que les données sont bien formées
+    if not isinstance(data, dict):
+        print("Données de statut corrompues")
+        return
+
     etapes = data.get("etapes")
     if not isinstance(etapes, dict):
         data["etapes"] = {}
         etapes = data["etapes"]
-    if nom_etape in etapes:
-        # Ne mettre à jour le statut à "termine" que si cette étape n'était pas déjà marquée
-        # comme terminée, et que toutes les étapes sont maintenant terminées
-        etait_deja_termine = etapes[nom_etape].get("done", False)
-        etapes[nom_etape].update({
-            "done":  True,
-            "date":  datetime.now().isoformat(),
-            "duree": duree,
-        })
-        data["updated_at"] = datetime.now().isoformat()
-        if not etait_deja_termine and est_chapitre_termine(data):
-            data["statut_global"] = "termine"
-        sauvegarder_status(chapitre_chemin, data)
-    else:
-        # Si l'étape n'existe pas, juste sauvegarder sans changer le statut
-        etapes[nom_etape] = {
-            "done":  True,
-            "date":  datetime.now().isoformat(),
-            "duree": duree,
-        }
-        data["updated_at"] = datetime.now().isoformat()
-        sauvegarder_status(chapitre_chemin, data)
+
+    # Comportement standardisé pour toutes les étapes
+    etait_deja_termine = etapes.get(nom_etape, {}).get("done", False)
+    etapes[nom_etape] = {
+        "done":  True,
+        "date":  datetime.now().isoformat(),
+        "duree": duree,
+    }
+    data["updated_at"] = datetime.now().isoformat()
+
+    # Mettre à jour le statut global si toutes les étapes sont terminées
+    if not etait_deja_termine and est_chapitre_termine(data):
+        data["statut_global"] = "termine"
+
+    sauvegarder_status(chapitre_chemin, data)
 
 def calculer_progression(status: dict) -> float:
     etapes = status.get("etapes") or {}
