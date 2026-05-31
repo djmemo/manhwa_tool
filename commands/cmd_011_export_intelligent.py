@@ -123,7 +123,15 @@ class SlicerConfigModal(ModalScreen):
             lbl.update("Largeur invalide (0-10000 px, 0 = originale).")
             return
 
-        self.dismiss({"max_height": height, "max_width": width, "png": png, "jpeg": jpeg, "cbz": cbz})
+        self.dismiss(
+            {
+                "max_height": height,
+                "max_width": width,
+                "png": png,
+                "jpeg": jpeg,
+                "cbz": cbz,
+            }
+        )
 
 
 def run(app=None) -> None:
@@ -218,15 +226,27 @@ def run(app=None) -> None:
                     max_width = config.get("max_width", 0)
                     LANCZOS = getattr(Image, "Resampling", Image).LANCZOS
                     if max_width and max_width < canvas.width:
-                        ratio  = max_width / canvas.width
-                        new_h  = int(canvas.height * ratio)
+                        ratio = max_width / canvas.width
+                        new_h = int(canvas.height * ratio)
                         canvas = canvas.resize((max_width, new_h), LANCZOS)
                         app.call_from_thread(
                             progression_screen.set_info,
                             f"Redimensionnement → {max_width}px de large...",
                         )
 
-                    slices_list, _ = slicer.slice_image(canvas, max_height)
+                    # slices_list, _ = slicer.slice_image(canvas, max_height)
+                    
+                    watermark_path = os.path.join(SESSION.role_dossier, "watermark.png")
+                    if not os.path.isfile(watermark_path):
+                        watermark_path = None
+
+                    slices_list, _ = slicer.slice_image(
+                        canvas,
+                        max_height,
+                        watermark_path=watermark_path,
+                        watermark_opacity=0.5,
+                    )
+
                     canvas.close()
 
                     # Export
