@@ -123,7 +123,7 @@ def run(app=None) -> None:
         if not est_fait("upscale"):
             maj("upscale", "en_cours")
             exe   = CFG.upscale.get("exe_path", "realesrgan-ncnn-vulkan")
-            model = role_data.get("config", {}).get("model_esrgan", "realesr-animevideov3")
+            model = role_data.get("config", {}).get("model_esrgan", "realesrgan-x4plus")
             src   = os.path.join(ch_chemin, "01_Original_RAW")
             dst   = os.path.join(ch_chemin, "02_Upscale_RAW")
             os.makedirs(dst, exist_ok=True)

@@ -70,7 +70,7 @@ def run(app=None) -> None:
             # FIX c) exe lu depuis CFG (même source que cmd_004)
             exe   = CFG.upscale.get("exe_path", "realesrgan-ncnn-vulkan")
             model = role_manager.lire_role(role_dir).get("config", {}).get(
-                        "model_esrgan", "realesr-animevideov3")
+                        "model_esrgan", "realesrgan-x4plus")
 
             if not os.path.isfile(exe):
                 app.call_from_thread(notify_warn, app,

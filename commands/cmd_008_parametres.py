@@ -107,7 +107,7 @@ class ParamScreen(Screen):
         from core import role_manager
         data = role_manager.lire_role(SESSION.role_dossier)
         cfg  = data.get("config", {})
-        self.query_one("#inp_model",         Input).value = str(cfg.get("model_esrgan",    "realesr-animevideov3"))
+        self.query_one("#inp_model",         Input).value = str(cfg.get("model_esrgan",    "realesrgan-x4plus"))
         self.query_one("#inp_qscale_global", Input).value = str(cfg.get("qscale_global",   95))
         self.query_one("#inp_qscale_groupe", Input).value = str(cfg.get("qscale_groupe",   90))
         self.query_one("#inp_slicer_height", Input).value = str(cfg.get("slicer_max_height", 8000))

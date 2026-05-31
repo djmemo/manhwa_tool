@@ -31,7 +31,7 @@ def run(app=None):
     dst_dir = os.path.join(ch_chemin, "02_Upscale_RAW")
 
     role_data = role_manager.lire_role(SESSION.role_dossier)
-    model_name = role_data.get("config", {}).get("model_esrgan", "realesr-animevideov3")
+    model_name = role_data.get("config", {}).get("model_esrgan", "realesrgan-x4plus")
     exts = tuple(role_data.get("config", {}).get("extensions_images", [".jpg",".jpeg",".png",".webp"]))
 
     os.makedirs(dst_dir, exist_ok=True)

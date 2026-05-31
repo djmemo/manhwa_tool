@@ -10,7 +10,7 @@ def creer_role(projet_chemin: str, dossier: str, label: str) -> str:
     data = {
         "role": {"label": label, "dossier": dossier, "membres": []},
         "config": {
-            "model_esrgan": "realesr-animevideov3", 
+            "model_esrgan": "realesrgan-x4plus", 
             "qscale_global": 95,
             "qscale_groupe": 90, 
             "extensions_images": [".jpg", ".jpeg", ".png", ".webp"]
